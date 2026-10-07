@@ -35,7 +35,7 @@ export function HelpButton({ onOpenShortcuts }: { onOpenShortcuts: () => void })
               variants={{ hover: { rotate: [0, -14, 10, 0], scale: 1.06 } }}
               transition={{ duration: 0.5, ease: "easeInOut" }}
             >
-              <HugeiconsIcon icon={HelpCircleIcon} strokeWidth={1.6} />
+              <HugeiconsIcon icon={HelpCircleIcon} strokeWidth={1.6} aria-hidden />
             </motion.span>
           </motion.button>
         </Button>

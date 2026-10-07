@@ -52,6 +52,7 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  onInteractOutside,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -66,6 +67,13 @@ function DialogContent({
           className
         )}
         {...props}
+        onInteractOutside={(event) => {
+          onInteractOutside?.(event)
+          // Toasts float above every layer; using one shouldn't dismiss the dialog underneath.
+          if (event.target instanceof Element && event.target.closest("[data-sonner-toaster]")) {
+            event.preventDefault()
+          }
+        }}
       >
         {children}
         {showCloseButton && (

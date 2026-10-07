@@ -57,6 +57,8 @@
   --color-copilot-highlight: var(--copilot-highlight);
   --animate-hatch-march: hatch-march 2.4s linear infinite;
   --animate-shimmer: shimmer 2.8s ease-in-out infinite;
+  /* Ambient version for always-on surfaces (live visits): one sweep, then a long rest. */
+  --animate-shimmer-ambient: shimmer-ambient 9s ease-in-out infinite;
   --animate-float: float 7s ease-in-out infinite;
   --animate-ping-slow: ping-slow 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
   --radius-sm: calc(var(--radius) * 0.6);
@@ -81,7 +83,8 @@
   --secondary: #eef0fd;
   --secondary-foreground: #18171f;
   --muted: #eef0fd;
-  --muted-foreground: #767885;
+  /* Darkened from the design's #767885 to clear 4.5:1 on white (5.4) and on the panel (4.7). */
+  --muted-foreground: #686a78;
   --accent: #e9ecff;
   --accent-foreground: #3f6bf3;
   --destructive: #e5484d;
@@ -103,18 +106,19 @@
   --sidebar-border: #e7e9f5;
   --sidebar-ring: #3f6bf3;
 
-  /* Dashboard surfaces and schedule statuses */
+  /* Dashboard surfaces and schedule statuses. */
   --panel: #eef0fd;
   --grid-line: #f0f1f8;
-  --hatch: #c9cde4;
+  --hatch: #d0d3e5;
   --done: #eef0fd;
-  --done-foreground: #747888;
+  /* Status text colours are nudged darker than the design so chip labels pass 4.5:1. */
+  --done-foreground: #666a7a;
   --scheduled: #ececfd;
   --scheduled-foreground: #18171f;
   --in-progress: #d5f461;
   --in-progress-foreground: #1b2400;
   --attention: #fdefef;
-  --attention-foreground: #d93a48;
+  --attention-foreground: #c8343f;
   --attention-border: #ef8d95;
   --warning: #e8a13e;
   --warning-foreground: #7d6830;
@@ -185,21 +189,30 @@
   }
 }
 
-/* Diagonal hatching for open shifts and remaining overtime capacity. Named so it stays clear of the colour utility Tailwind generates for --color-hatch. */
+/*
+  Diagonal hatching for open shifts and remaining overtime capacity. Named so it stays clear of the
+  colour utility Tailwind generates for --color-hatch.
+  Each tile draws its centre stripe plus the two corner slivers, so stripes run unbroken across
+  tile seams instead of looking dashed. Set --hatch-size (e.g. `[--hatch-size:6px]`) for a denser
+  pattern; `animate-hatch-march` reads the same variable, so the march stays seamless.
+*/
 @utility bg-hatched {
+  --hatch-stripe: 0.7px;
   background-color: var(--color-panel);
   background-image: linear-gradient(
     135deg,
-    transparent 0 calc(50% - 0.75px),
-    var(--color-hatch) calc(50% - 0.75px) calc(50% + 0.75px),
-    transparent calc(50% + 0.75px)
+    var(--color-hatch) 0 var(--hatch-stripe),
+    transparent var(--hatch-stripe) calc(50% - var(--hatch-stripe)),
+    var(--color-hatch) calc(50% - var(--hatch-stripe)) calc(50% + var(--hatch-stripe)),
+    transparent calc(50% + var(--hatch-stripe)) calc(100% - var(--hatch-stripe)),
+    var(--color-hatch) calc(100% - var(--hatch-stripe))
   );
-  background-size: 8px 8px;
+  background-size: var(--hatch-size, 8px) var(--hatch-size, 8px);
 }
 
 @keyframes hatch-march {
   to {
-    background-position: 8px 0;
+    background-position: var(--hatch-size, 8px) 0;
   }
 }
 
@@ -209,6 +222,17 @@
     transform: translateX(-120%);
   }
   60%,
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+/* Same sweep (about 1.6s of a 9s cycle), then still: ambient life without constant motion. */
+@keyframes shimmer-ambient {
+  0% {
+    transform: translateX(-120%);
+  }
+  18%,
   100% {
     transform: translateX(220%);
   }
@@ -241,7 +265,11 @@
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* Staggered CSS entrances would otherwise sit hidden (fill-mode backwards) for their delay. */
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }

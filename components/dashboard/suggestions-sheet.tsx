@@ -7,17 +7,19 @@ import {
   ArrowRight02Icon,
   CheckmarkCircle02Icon,
   Clock01Icon,
-  AiBeautifyIcon,
+  SparklesIcon,
   Tick02Icon,
   UserAdd01Icon,
 } from "@hugeicons/core-free-icons"
 import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants } from "motion/react"
 
+import { COPILOT_CTA_SELECTOR } from "@/components/dashboard/ai-copilot-card"
 import { describeSuggestions } from "@/components/dashboard/cards/copilot-copy"
 import { HatchedCircle } from "@/components/dashboard/cards/hatched-circle"
 import { SparkleBurst } from "@/components/dashboard/cards/sparkle-burst"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { useSchedule } from "@/components/dashboard/schedule-store"
+import { useRestoreFocus } from "@/components/dashboard/top-bar/use-restore-focus"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -49,8 +51,14 @@ import { cn } from "@/lib/utils"
 
 type ExitKind = "accept" | "dismiss"
 
-/** How long the accepted card shows its check before it collapses out. */
+/** How long an accepted card shows its check before the sheet gets out of the way. */
 const ACCEPT_FLASH_MS = 560
+/** SheetContent slides out over 200ms; wait for it so the board is clear when the moves start. */
+const SHEET_EXIT_MS = 240
+/** Gap between Accept all's moves, so each block's glide and highlight reads on its own. */
+const ACCEPT_STAGGER_MS = 160
+/** Window after opening in which focus pulled outside is another overlay closing, not the user. */
+const OPEN_SETTLE_MS = 600
 
 const cardVariants: Variants = {
   hidden: { opacity: 0, x: 24 },
@@ -59,9 +67,15 @@ const cardVariants: Variants = {
     x: 0,
     transition: { type: "spring", stiffness: 340, damping: 30, delay: 0.12 + index * 0.08 },
   }),
+  // Dismissed cards fade out quickly in place, so they're gone before the next card slides up.
   exit: (kind: ExitKind) =>
     kind === "dismiss"
-      ? { opacity: 0, x: -72, transition: { duration: 0.26, ease: [0.4, 0, 1, 1] } }
+      ? {
+          opacity: 0,
+          x: -20,
+          scale: 0.97,
+          transition: { duration: 0.2, ease: [0.4, 0, 1, 1], opacity: { duration: 0.15 } },
+        }
       : {
           opacity: 0,
           scale: 0.92,
@@ -71,6 +85,17 @@ const cardVariants: Variants = {
         },
 }
 
+function focusable(root: HTMLElement | null, selector: string) {
+  return Array.from(root?.querySelectorAll<HTMLElement>(selector) ?? []).filter(
+    (el) => !el.closest("[inert]")
+  )
+}
+
+/**
+ * The AI Copilot review panel. It's non-modal and has no scrim: suggestions are previewed on
+ * the board (the "Show on schedule" switch), and accepted ones play out there, so the board
+ * must stay visible. Whatever opened it gets focus back when it closes.
+ */
 export function SuggestionsSheet() {
   const {
     suggestions,
@@ -81,13 +106,17 @@ export function SuggestionsSheet() {
     setSuggestionsOpen,
     setPreviewSuggestions,
     acceptSuggestion,
-    acceptAllSuggestions,
     dismissSuggestion,
   } = useSchedule()
   const reduceMotion = useReducedMotion()
+  const focusReturn = useRestoreFocus()
   const [accepting, setAccepting] = React.useState<string[]>([])
   const [exitKind, setExitKind] = React.useState<ExitKind>("accept")
   const timeouts = React.useRef<number[]>([])
+  const listRef = React.useRef<HTMLDivElement>(null)
+  const closeRef = React.useRef<HTMLButtonElement>(null)
+  const lastFocused = React.useRef<HTMLElement | null>(null)
+  const openedAt = React.useRef(0)
   const switchId = React.useId()
 
   React.useEffect(() => {
@@ -95,46 +124,97 @@ export function SuggestionsSheet() {
     return () => pending.forEach((t) => window.clearTimeout(t))
   }, [])
 
-  const flashDelay = reduceMotion ? 0 : ACCEPT_FLASH_MS
   const busy = accepting.length > 0
 
-  function later(run: () => void) {
-    timeouts.current.push(window.setTimeout(run, flashDelay))
+  function after(ms: number, run: () => void) {
+    timeouts.current.push(window.setTimeout(run, ms))
   }
 
-  function handleOpenChange(open: boolean) {
-    setSuggestionsOpen(open)
-    if (!open) setPreviewSuggestions(false)
+  /**
+   * Accepted suggestions play out on the board, so: flash the check on each card, slide the
+   * sheet away, then apply the moves one at a time so every glide is visible.
+   */
+  function commit(ids: string[]) {
+    if (ids.length === 0) return
+    setAccepting((current) => [...current, ...ids])
+    const flash = reduceMotion ? 0 : ACCEPT_FLASH_MS
+    const exit = reduceMotion ? 0 : SHEET_EXIT_MS
+    const stagger = reduceMotion ? 0 : ACCEPT_STAGGER_MS
+    after(flash, () => setSuggestionsOpen(false))
+    ids.forEach((id, index) =>
+      after(flash + exit + index * stagger, () => {
+        setExitKind("accept")
+        acceptSuggestion(id)
+        setAccepting((current) => current.filter((x) => x !== id))
+      })
+    )
   }
 
   function accept(id: string) {
-    if (accepting.includes(id)) return
-    setAccepting((ids) => [...ids, id])
-    later(() => {
-      setExitKind("accept")
-      acceptSuggestion(id)
-      setAccepting((ids) => ids.filter((x) => x !== id))
-    })
-  }
-
-  function dismiss(id: string) {
-    setExitKind("dismiss")
-    dismissSuggestion(id)
+    if (!accepting.includes(id)) commit([id])
   }
 
   function acceptAll() {
-    setAccepting(suggestions.map((s) => s.id))
-    later(() => {
-      setExitKind("accept")
-      acceptAllSuggestions()
-      setPreviewSuggestions(false)
-      setAccepting([])
+    commit(suggestions.map((s) => s.id).filter((id) => !accepting.includes(id)))
+  }
+
+  function dismiss(id: string, index: number) {
+    setExitKind("dismiss")
+    dismissSuggestion(id)
+    // The dismissed card (and the focused button in it) is leaving: move on to the next one.
+    window.requestAnimationFrame(() => {
+      const accepts = focusable(listRef.current, "[data-suggestion-accept]")
+      const next = accepts[Math.min(index, accepts.length - 1)] ?? closeRef.current
+      next?.focus({ preventScroll: true })
     })
   }
 
+  function handleOpenAutoFocus() {
+    openedAt.current = performance.now()
+    lastFocused.current = null
+    focusReturn.remember()
+  }
+
+  function handleFocusOutside(event: Event) {
+    // Non-modal, so focus may leave; the panel stays open until it is closed.
+    event.preventDefault()
+    // An overlay that closed as this one opened (the ⌘K palette) is handing focus back to its
+    // own opener. Adopt that element as the place to return to, and keep focus in the panel.
+    if (performance.now() - openedAt.current > OPEN_SETTLE_MS) return
+    focusReturn.remember()
+    lastFocused.current?.focus({ preventScroll: true })
+  }
+
+  function handleCloseAutoFocus(event: Event) {
+    // Non-modal: if focus already moved elsewhere on the page, leave it there.
+    const active = document.activeElement
+    if (active && active !== document.body) {
+      event.preventDefault()
+      return
+    }
+    focusReturn.restore(event)
+    if (event.defaultPrevented) return
+    // The opener is gone (a toast, or a ghost block that was just accepted): use the copilot card.
+    const cta = document.querySelector<HTMLElement>(COPILOT_CTA_SELECTOR)
+    if (!cta) return
+    event.preventDefault()
+    cta.focus({ preventScroll: true })
+  }
+
   return (
-    <Sheet open={suggestionsOpen} onOpenChange={handleOpenChange}>
-      <SheetContent side="right" className="w-full gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md">
+    <Sheet open={suggestionsOpen} onOpenChange={setSuggestionsOpen} modal={false}>
+      <SheetContent
+        side="right"
+        className="w-full gap-0 data-[side=right]:w-full data-[side=right]:sm:max-w-md"
+        onOpenAutoFocus={handleOpenAutoFocus}
+        onCloseAutoFocus={handleCloseAutoFocus}
+        onFocus={(event) => {
+          lastFocused.current = event.target
+        }}
+        // A side panel, not a dialog over the page: working on the board leaves it open.
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onFocusOutside={handleFocusOutside}
+      >
         <SheetHeader className="gap-3 pb-5">
           <motion.span
             aria-hidden
@@ -143,14 +223,14 @@ export function SuggestionsSheet() {
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 380, damping: 16, delay: 0.1 }}
           >
-            <HugeiconsIcon icon={AiBeautifyIcon} strokeWidth={1.8} className="size-5" />
+            <HugeiconsIcon icon={SparklesIcon} strokeWidth={1.8} className="size-5" />
           </motion.span>
           <div className="flex flex-col gap-1">
             <SheetTitle className="text-xl">AI Copilot suggestions</SheetTitle>
             <SheetDescription className="text-[15px]">
               {suggestions.length > 0
                 ? describeSuggestions(pendingSavings, pendingFills)
-                : "All caught up"}
+                : "Nothing to review right now."}
             </SheetDescription>
           </div>
           <label
@@ -174,7 +254,7 @@ export function SuggestionsSheet() {
 
         <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col p-6">
-            <ItemGroup className="relative gap-3">
+            <ItemGroup ref={listRef} className="relative gap-3">
               <AnimatePresence mode="popLayout" custom={exitKind}>
                 {suggestions.map((suggestion, index) => (
                   <SuggestionCard
@@ -184,13 +264,13 @@ export function SuggestionsSheet() {
                     accepting={accepting.includes(suggestion.id)}
                     disabled={busy}
                     onAccept={() => accept(suggestion.id)}
-                    onDismiss={() => dismiss(suggestion.id)}
+                    onDismiss={() => dismiss(suggestion.id, index)}
                   />
                 ))}
               </AnimatePresence>
             </ItemGroup>
 
-            {suggestions.length === 0 ? <AllAppliedState /> : null}
+            {suggestions.length === 0 ? <CaughtUpState /> : null}
           </div>
         </ScrollArea>
 
@@ -198,7 +278,7 @@ export function SuggestionsSheet() {
 
         <SheetFooter className="mt-0 flex-row justify-end gap-2 py-4">
           <SheetClose asChild>
-            <Button variant="outline" size="lg">
+            <Button ref={closeRef} variant="outline" size="lg">
               Close
             </Button>
           </SheetClose>
@@ -287,12 +367,20 @@ function SuggestionCard({
             )}
           </div>
           <ItemActions className="ml-auto gap-1.5">
-            <Button variant="ghost" size="sm" onClick={onDismiss} disabled={disabled}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDismiss}
+              disabled={disabled}
+              aria-label={`Dismiss: ${suggestion.title}`}
+            >
               Dismiss
             </Button>
             <Button asChild size="sm">
               <motion.button
                 type="button"
+                data-suggestion-accept=""
+                aria-label={`Accept: ${suggestion.title}`}
                 onClick={onAccept}
                 disabled={disabled}
                 whileHover={{ scale: 1.04 }}
@@ -396,7 +484,7 @@ function FlowPerson({ label, children }: { label: string; children: React.ReactN
   )
 }
 
-function AllAppliedState() {
+function CaughtUpState() {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -416,13 +504,11 @@ function AllAppliedState() {
               animate={{ scale: 1, rotate: 0 }}
               transition={{ type: "spring", stiffness: 420, damping: 14, delay: 0.2 }}
             >
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} className="size-7" />
+              <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} />
             </motion.span>
           </EmptyMedia>
-          <EmptyTitle>All suggestions applied</EmptyTitle>
-          <EmptyDescription>
-            Today&apos;s schedule is balanced. Run the optimizer again after changes.
-          </EmptyDescription>
+          <EmptyTitle>You&apos;re all caught up</EmptyTitle>
+          <EmptyDescription>No pending suggestions. Run the optimizer again after schedule changes.</EmptyDescription>
         </EmptyHeader>
       </Empty>
     </motion.div>

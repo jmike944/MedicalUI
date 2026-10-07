@@ -144,10 +144,12 @@ export function NotificationsButton() {
   const reduceMotion = useReducedMotion()
   const notices = useNotices(() => setOpen(false))
   const unread = notices.filter((n) => !readIds.has(n.id)).length
+  const titleId = React.useId()
 
   const markRead = (id: string) =>
     setReadIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)))
   const markAllRead = () => {
+    if (unread === 0) return
     setReadIds(new Set(notices.map((n) => n.id)))
     // A small "all clear" ring as the dot pops away.
     if (!reduceMotion) animateBell(bellScope.current, { rotate: [0, -14, 11, -6, 3, 0] }, { duration: 0.6, ease: "easeInOut" })
@@ -176,7 +178,7 @@ export function NotificationsButton() {
               variants={{ hover: { rotate: [0, -16, 13, -9, 5, 0] } }}
               transition={{ duration: 0.65, ease: "easeInOut" }}
             >
-              <HugeiconsIcon icon={Notification01Icon} strokeWidth={1.6} />
+              <HugeiconsIcon icon={Notification01Icon} strokeWidth={1.6} aria-hidden />
             </motion.span>
             <AnimatePresence>
               {unread > 0 ? (
@@ -196,11 +198,16 @@ export function NotificationsButton() {
           </motion.button>
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" sideOffset={8} className="w-[min(23rem,calc(100vw-2rem))] gap-0 p-0">
+      <PopoverContent
+        align="end"
+        sideOffset={8}
+        aria-labelledby={titleId}
+        className="w-[min(23rem,calc(100vw-2rem))] gap-0 p-0"
+      >
         <PopoverHeader className="flex-row items-center gap-2 px-4 pt-4 pb-3">
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <div className="flex items-center gap-2">
-              <PopoverTitle>Notifications</PopoverTitle>
+              <PopoverTitle id={titleId}>Notifications</PopoverTitle>
               <AnimatePresence initial={false} mode="popLayout">
                 {unread > 0 ? (
                   <motion.span
@@ -218,11 +225,13 @@ export function NotificationsButton() {
             </div>
             <PopoverDescription className="text-xs">Today at Juniper Home Health</PopoverDescription>
           </div>
+          {/* aria-disabled rather than disabled: a disabled button drops focus to <body>
+              the moment it disables itself under the keyboard. */}
           <Button
             variant="ghost"
             size="xs"
-            className="text-primary"
-            disabled={unread === 0}
+            className="text-primary aria-disabled:pointer-events-none aria-disabled:opacity-50"
+            aria-disabled={unread === 0}
             onClick={markAllRead}
           >
             Mark all read
@@ -256,7 +265,7 @@ export function NotificationsButton() {
                           toneStyles[notice.tone]
                         )}
                       >
-                        <HugeiconsIcon icon={notice.icon} strokeWidth={1.8} />
+                        <HugeiconsIcon icon={notice.icon} strokeWidth={1.8} aria-hidden />
                       </ItemMedia>
                       <ItemContent className="min-w-0 gap-0.5">
                         <ItemTitle className="line-clamp-2 w-full">{notice.title}</ItemTitle>

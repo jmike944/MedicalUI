@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { motion } from "motion/react"
 import { toast } from "sonner"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -29,15 +30,20 @@ const itemMotion = "animate-in duration-300 fill-mode-backwards fade-in-0 slide-
 
 /** Signed-in scheduler. The avatar's ring swells on hover and stays while the menu is open. */
 export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
+  // "Keyboard shortcuts" waits for the menu to hand focus back to the avatar, so the
+  // dialog remembers (and later restores) the avatar rather than an unmounted menu item.
+  const shortcutsPendingRef = React.useRef(false)
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <motion.button
           type="button"
           aria-label={`Account menu for ${CURRENT_USER.name}`}
-          className="group/avatar-trigger flex size-10 items-center justify-center rounded-full outline-none md:size-12 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          // Press is a CSS :active scale: motion's whileTap would make Enter open the menu
+          // and immediately close it again (see CreateTrigger).
+          className="group/avatar-trigger flex size-10 items-center justify-center rounded-full outline-none transition-[scale] duration-150 ease-out active:scale-[0.94] md:size-12 focus-visible:ring-[3px] focus-visible:ring-ring/50"
           whileHover={{ scale: 1.04 }}
-          whileTap={{ scale: 0.94 }}
           transition={snappy}
         >
           <PersonAvatar
@@ -47,10 +53,22 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
           />
         </motion.button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" sideOffset={8} className="w-60">
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-60"
+        onCloseAutoFocus={() => {
+          if (!shortcutsPendingRef.current) return
+          shortcutsPendingRef.current = false
+          // Radix focuses the trigger right after this handler returns.
+          requestAnimationFrame(() => onOpenShortcuts())
+        }}
+      >
         <DropdownMenuGroup>
           <DropdownMenuLabel className="flex items-center gap-3 text-foreground">
-            <PersonAvatar name={CURRENT_USER.name} src={CURRENT_USER.avatar} size="lg" />
+            <span aria-hidden className="flex shrink-0">
+              <PersonAvatar name={CURRENT_USER.name} src={CURRENT_USER.avatar} size="lg" />
+            </span>
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-medium">{CURRENT_USER.name}</span>
               <span className="truncate text-xs text-muted-foreground">{CURRENT_USER.role}</span>
@@ -64,7 +82,7 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
             style={staggerDelay(1, 30)}
             onSelect={() => toast(`Opened ${CURRENT_USER.name}'s profile`)}
           >
-            <HugeiconsIcon icon={UserCircleIcon} strokeWidth={1.8} />
+            <HugeiconsIcon icon={UserCircleIcon} strokeWidth={1.8} aria-hidden />
             Profile
           </DropdownMenuItem>
           <DropdownMenuItem
@@ -72,15 +90,17 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
             style={staggerDelay(2, 30)}
             onSelect={() => toast("Opened agency settings")}
           >
-            <HugeiconsIcon icon={Settings01Icon} strokeWidth={1.8} />
+            <HugeiconsIcon icon={Settings01Icon} strokeWidth={1.8} aria-hidden />
             Settings
           </DropdownMenuItem>
           <DropdownMenuItem
             className={itemMotion}
             style={staggerDelay(3, 30)}
-            onSelect={onOpenShortcuts}
+            onSelect={() => {
+              shortcutsPendingRef.current = true
+            }}
           >
-            <HugeiconsIcon icon={KeyboardIcon} strokeWidth={1.8} />
+            <HugeiconsIcon icon={KeyboardIcon} strokeWidth={1.8} aria-hidden />
             Keyboard shortcuts
             <DropdownMenuShortcut>?</DropdownMenuShortcut>
           </DropdownMenuItem>
@@ -94,7 +114,7 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
               toast("Signed out", { description: "This is a demo, so you're still here." })
             }
           >
-            <HugeiconsIcon icon={Logout03Icon} strokeWidth={1.8} />
+            <HugeiconsIcon icon={Logout03Icon} strokeWidth={1.8} aria-hidden />
             Sign out
           </DropdownMenuItem>
         </DropdownMenuGroup>

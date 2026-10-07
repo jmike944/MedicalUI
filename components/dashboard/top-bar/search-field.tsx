@@ -17,22 +17,19 @@ const PLACEHOLDER = "Search patients, caregivers, claims"
 
 /**
  * The header search. It is a real input, but searching happens in the command palette:
- * focusing, clicking or typing opens it (typed characters carry over as the query).
+ * clicking, typing, Enter or ↓ opens it (typed characters carry over as the query).
+ * Focus alone only lights the field, so tabbing through the header never opens a dialog.
  */
 export function SearchField({
   open,
   onOpen,
-  skipFocusOpenRef,
   className,
 }: {
   open: boolean
   onOpen: (query?: string) => void
-  /** Set while focus returns here from the palette, so it doesn't reopen. */
-  skipFocusOpenRef: React.RefObject<boolean>
   className?: string
 }) {
   const isMac = useIsMac()
-  const inputRef = React.useRef<HTMLInputElement>(null)
   const [active, setActive] = React.useState(false)
   const lit = active || open
 
@@ -54,7 +51,6 @@ export function SearchField({
         )}
       >
         <InputGroupInput
-          ref={inputRef}
           type="search"
           value=""
           aria-label={PLACEHOLDER}
@@ -64,19 +60,9 @@ export function SearchField({
           autoComplete="off"
           spellCheck={false}
           className="h-full truncate px-0 text-[15px] text-foreground placeholder:text-muted-foreground md:text-[15px] [&::-webkit-search-cancel-button]:hidden"
-          onFocus={() => {
-            setActive(true)
-            if (skipFocusOpenRef.current) {
-              skipFocusOpenRef.current = false
-              return
-            }
-            onOpen()
-          }}
+          onFocus={() => setActive(true)}
           onBlur={() => setActive(false)}
-          onMouseDown={() => {
-            // Clicking an already-focused field (after the palette returned focus here).
-            if (document.activeElement === inputRef.current) onOpen()
-          }}
+          onClick={() => onOpen()}
           onChange={(event) => onOpen(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === "ArrowDown") {
@@ -98,7 +84,7 @@ export function SearchField({
             }}
             transition={{ type: "spring", stiffness: 600, damping: 18 }}
           >
-            <HugeiconsIcon icon={Search01Icon} strokeWidth={1.7} className="size-[22px]" />
+            <HugeiconsIcon icon={Search01Icon} strokeWidth={1.7} className="size-[22px]" aria-hidden />
           </motion.span>
         </InputGroupAddon>
         <InputGroupAddon
@@ -159,7 +145,7 @@ export function SearchIconButton({ onOpen }: { onOpen: () => void }) {
           variants={{ hover: { rotate: -12, scale: 1.08 } }}
           transition={{ type: "spring", stiffness: 600, damping: 18 }}
         >
-          <HugeiconsIcon icon={Search01Icon} strokeWidth={1.8} />
+          <HugeiconsIcon icon={Search01Icon} strokeWidth={1.8} aria-hidden />
         </motion.span>
       </motion.button>
     </Button>

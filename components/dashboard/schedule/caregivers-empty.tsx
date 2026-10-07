@@ -4,7 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { UserMultipleIcon } from "@hugeicons/core-free-icons"
 import { motion } from "motion/react"
 
-import { useSchedule } from "@/components/dashboard/schedule-store"
+import { useScheduleActions, useScheduleUi } from "@/components/dashboard/schedule-store"
 import { Button } from "@/components/ui/button"
 import {
   Empty,
@@ -19,7 +19,8 @@ import { EASE_OUT } from "./timeline-layout"
 
 /** Shown when the caregiver filter leaves no rows, e.g. once every overtime risk is resolved. */
 export function CaregiversEmpty({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
-  const { filter, setFilter } = useSchedule()
+  const { filter } = useScheduleUi()
+  const { setFilter } = useScheduleActions()
 
   return (
     <motion.div

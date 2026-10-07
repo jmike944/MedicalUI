@@ -31,4 +31,5 @@ export const visitStatusStyles: Record<
 export const suggestionBlockStyle =
   "bg-accent/70 text-accent-foreground border border-dashed border-primary/50"
 
-export const openShiftBlockStyle = "bg-hatched text-muted-foreground ring-1 ring-inset ring-hatch/70"
+/** Hatched open shift on the timeline. Labels are a touch darker than muted text, as in the design. */
+export const openShiftBlockStyle = "bg-hatched text-foreground/70 ring-1 ring-inset ring-hatch/70"

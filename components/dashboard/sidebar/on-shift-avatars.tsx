@@ -2,12 +2,13 @@
 
 import * as React from "react"
 import { motion } from "motion/react"
+import { toast } from "sonner"
 
 import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import type { Caregiver } from "@/lib/schedule-data"
+import { AGENCY, type Caregiver } from "@/lib/schedule-data"
 import { bouncySpring, snappySpring } from "./motion"
 
 const SPREAD = 5
@@ -55,10 +56,14 @@ export function OnShiftAvatars({
           >
             <Tooltip>
               <TooltipTrigger asChild>
-                <motion.a
-                  href="#"
+                <motion.button
+                  type="button"
                   aria-label={`${caregiver.name}, ${caregiver.role}, on shift`}
-                  onClick={(event) => event.preventDefault()}
+                  onClick={() =>
+                    toast(`Opened ${caregiver.name}'s profile`, {
+                      description: `${caregiver.role} · On shift · ${caregiver.weeklyHours} of ${caregiver.weeklyLimit} h this week`,
+                    })
+                  }
                   onPointerEnter={() => setLifted(caregiver.id)}
                   onPointerLeave={() => setLifted(null)}
                   onFocus={() => setLifted(caregiver.id)}
@@ -69,14 +74,14 @@ export function OnShiftAvatars({
                     scale: isLifted ? 1.1 : 1,
                   }}
                   transition={snappySpring}
-                  className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+                  className="flex cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
                 >
                   <PersonAvatar
                     name={caregiver.name}
                     src={caregiver.avatar}
                     className="size-9 ring-2 ring-sidebar"
                   />
-                </motion.a>
+                </motion.button>
               </TooltipTrigger>
               <TooltipContent side="top" sideOffset={6}>
                 {caregiver.name} · {caregiver.role}
@@ -95,18 +100,22 @@ export function OnShiftAvatars({
         >
           <Tooltip>
             <TooltipTrigger asChild>
-              <motion.a
-                href="#"
+              <motion.button
+                type="button"
                 aria-label={`${remaining} more caregivers on shift`}
-                onClick={(event) => event.preventDefault()}
+                onClick={() =>
+                  toast(`${AGENCY.caregiversOnShift} caregivers on shift`, {
+                    description: `${caregivers.map((caregiver) => caregiver.name.split(" ")[0]).join(", ")} and ${remaining} more are working right now.`,
+                  })
+                }
                 animate={{ x: spread ? caregivers.length * SPREAD : 0 }}
                 transition={snappySpring}
-                className="flex rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+                className="flex cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
               >
                 <AvatarGroupCount className="size-9 bg-panel text-[13px] text-sidebar-foreground ring-sidebar">
                   +<AnimatedNumber value={remaining} delay={delay} duration={0.8} />
                 </AvatarGroupCount>
-              </motion.a>
+              </motion.button>
             </TooltipTrigger>
             <TooltipContent side="top" sideOffset={6}>
               {remaining} more on shift

@@ -8,7 +8,9 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react"
 import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import {
   isOvertimeRisk,
-  useSchedule,
+  useScheduleActions,
+  useScheduleData,
+  useScheduleUi,
   type CaregiverFilter,
   type ScheduleView,
 } from "@/components/dashboard/schedule-store"
@@ -29,7 +31,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { AGENCY, openShifts as initialOpenShifts } from "@/lib/schedule-data"
 import { cn } from "@/lib/utils"
 
-import { EASE_OUT } from "./timeline-layout"
+import { EASE_OUT, SLIDE, SNAPPY } from "./timeline-layout"
 
 const VIEWS: { value: ScheduleView; label: string }[] = [
   { value: "day", label: "Day" },
@@ -42,11 +44,9 @@ const FILTERS: { value: CaregiverFilter; label: string }[] = [
   { value: "overtime", label: "Overtime risk" },
 ]
 
-/** Controls glide sideways when a neighbour changes width (e.g. "Optimize" to "Optimizing…"). */
-const SLIDE = { type: "spring", stiffness: 420, damping: 36 } as const
-
 function ViewToggle() {
-  const { view, setView } = useSchedule()
+  const { view } = useScheduleUi()
+  const { setView } = useScheduleActions()
 
   return (
     <motion.div layout="position" transition={SLIDE}>
@@ -64,7 +64,9 @@ function ViewToggle() {
           <ToggleGroupItem
             key={option.value}
             value={option.value}
-            className="relative h-8 px-3 text-sm font-medium text-muted-foreground transition-[color,scale] duration-200 group-data-[spacing=0]/toggle-group:rounded-full group-data-[spacing=0]/toggle-group:px-3 hover:bg-transparent hover:text-foreground active:scale-[0.97] data-[state=on]:bg-transparent data-[state=on]:text-foreground"
+            // `rounded-full!` beats the primitive's first:/last: corner radii, which otherwise mix
+            // with the full radius and square off the focus ring's outer corners.
+            className="relative h-8 rounded-full! px-[13px] text-sm font-medium text-foreground/70 transition-[color,scale] duration-200 group-data-[spacing=0]/toggle-group:px-[13px] hover:bg-transparent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.97] data-[state=on]:bg-transparent data-[state=on]:text-foreground"
           >
             {view === option.value ? (
               <motion.span
@@ -72,7 +74,7 @@ function ViewToggle() {
                 aria-hidden
                 className="absolute inset-0 rounded-full bg-card shadow-sm"
                 style={{ borderRadius: 999 }}
-                transition={{ type: "spring", stiffness: 520, damping: 38 }}
+                transition={SNAPPY}
               />
             ) : null}
             <span className="relative">{option.label}</span>
@@ -83,9 +85,40 @@ function ViewToggle() {
   )
 }
 
+/**
+ * Radix hands focus back to a menu's trigger when it closes. After a pointer pick that would leave
+ * the keyboard focus ring on the trigger until the next click, so keep the focus but skip the ring;
+ * menus closed from the keyboard still show it.
+ */
+function usePointerAwareMenuFocus<T extends HTMLElement>() {
+  const triggerRef = React.useRef<T>(null)
+  const viaPointer = React.useRef(false)
+  const contentProps = {
+    onPointerDown: () => {
+      viaPointer.current = true
+    },
+    onPointerDownOutside: () => {
+      viaPointer.current = true
+    },
+    onKeyDown: () => {
+      viaPointer.current = false
+    },
+    onCloseAutoFocus: (event: Event) => {
+      if (!viaPointer.current) return
+      viaPointer.current = false
+      event.preventDefault()
+      triggerRef.current?.focus({ preventScroll: true, focusVisible: false })
+    },
+  }
+  return { triggerRef, contentProps }
+}
+
 function CaregiverFilterMenu() {
-  const { filter, setFilter, caregivers } = useSchedule()
+  const { filter } = useScheduleUi()
+  const { caregivers } = useScheduleData()
+  const { setFilter } = useScheduleActions()
   const current = FILTERS.find((option) => option.value === filter) ?? FILTERS[0]
+  const { triggerRef, contentProps } = usePointerAwareMenuFocus<HTMLButtonElement>()
   const counts: Record<CaregiverFilter, number> = {
     all: caregivers.length,
     "on-shift": caregivers.filter((c) => c.onShift).length,
@@ -97,9 +130,10 @@ function CaregiverFilterMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
+            ref={triggerRef}
             variant="secondary"
             aria-label={`Caregiver filter: ${current.label}`}
-            className="relative h-10 gap-1.5 overflow-hidden rounded-full pr-2.5 pl-3.5 text-sm font-medium active:scale-[0.98]"
+            className="relative h-[34px] gap-1.5 overflow-hidden rounded-full pr-2.5 pl-3.5 text-sm font-medium active:scale-[0.98]"
           >
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
@@ -120,7 +154,7 @@ function CaregiverFilterMenu() {
             />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuContent align="end" className="w-56" {...contentProps}>
           <DropdownMenuGroup>
             <DropdownMenuLabel>Show on the schedule</DropdownMenuLabel>
           </DropdownMenuGroup>
@@ -145,23 +179,25 @@ function CaregiverFilterMenu() {
 }
 
 function OptimizeButton() {
-  const { optimize, optimizing } = useSchedule()
+  const { optimizing } = useScheduleUi()
+  const { optimize } = useScheduleActions()
 
   return (
     <>
       <Button
         asChild
         size="lg"
-        className="relative h-10 gap-1.5 overflow-hidden rounded-full px-3.5 text-sm font-medium has-data-[icon=inline-start]:pl-3.5 aria-disabled:cursor-progress"
+        className="relative h-[34px] gap-1.5 overflow-hidden rounded-full px-[13px] text-sm font-medium has-data-[icon=inline-start]:pl-[13px] aria-disabled:cursor-progress"
       >
         {/* aria-disabled rather than disabled keeps keyboard focus on the button during the run;
             optimize() ignores repeat presses while it is busy. */}
         <motion.button
           type="button"
+          data-schedule-optimize
           layout
           onClick={optimize}
           aria-disabled={optimizing}
-          style={{ borderRadius: 20 }}
+          style={{ borderRadius: 17 }}
           transition={{ layout: SLIDE }}
           whileTap={{ scale: 0.97 }}
         >
@@ -212,7 +248,7 @@ function OptimizeButton() {
 
 /** Card header: title with the agency's visit count, then the view toggle, filter and optimizer. */
 export function ScheduleHeader() {
-  const { openShifts } = useSchedule()
+  const { openShifts } = useScheduleData()
   // Each open shift filled today adds a visit to the agency's total.
   const filledToday = initialOpenShifts.length - openShifts.length
 
@@ -227,17 +263,17 @@ export function ScheduleHeader() {
         <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-panel text-foreground">
           <HugeiconsIcon icon={Calendar03Icon} strokeWidth={1.8} className="size-4" />
         </span>
-        <CardTitle id="schedule-title" role="heading" aria-level={2} className="text-xl leading-7 font-medium">
+        <CardTitle id="schedule-title" role="heading" aria-level={2} className="text-xl leading-7 font-normal">
           Schedule
         </CardTitle>
-        <CardDescription className="-ml-0.5 truncate text-[15px] leading-5">
+        <CardDescription className="truncate text-[15px] leading-5">
           {AGENCY.dateLabel} ·{" "}
           <AnimatedNumber value={AGENCY.totalVisits + filledToday} duration={1.1} delay={0.15} /> visits
         </CardDescription>
       </motion.div>
       <CardAction className="ml-auto self-center">
         <motion.div
-          className="flex flex-wrap items-center gap-x-4 gap-y-2"
+          className="flex flex-wrap items-center gap-x-3 gap-y-2"
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.08 }}

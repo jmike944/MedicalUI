@@ -40,6 +40,8 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void
   isMobile: boolean
   toggleSidebar: () => void
+  /** Id of the element the sidebar renders into, for the trigger's `aria-controls`. */
+  sidebarId: string
 }
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null)
@@ -67,6 +69,7 @@ function SidebarProvider({
   onOpenChange?: (open: boolean) => void
 }) {
   const isMobile = useIsMobile()
+  const sidebarId = React.useId()
   const [openMobile, setOpenMobile] = React.useState(false)
 
   // This is the internal state of the sidebar.
@@ -122,8 +125,9 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      sidebarId,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, sidebarId]
   )
 
   return (
@@ -162,7 +166,7 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset"
   collapsible?: "offcanvas" | "icon" | "none"
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+  const { isMobile, state, openMobile, setOpenMobile, sidebarId } = useSidebar()
 
   if (collapsible === "none") {
     return (
@@ -183,21 +187,38 @@ function Sidebar({
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent
+          id={sidebarId}
           dir={dir}
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
+          className={cn(
+            "w-(--sidebar-width) bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden",
+            // A drawer slides fully on and off screen without fading, so its labels never ghost
+            // over the page mid-transition. The extra data-mobile selector outranks the sheet's
+            // default 40px slide and fade.
+            "data-[mobile=true]:data-open:fade-in-100 data-[mobile=true]:data-closed:fade-out-100",
+            "data-[mobile=true]:data-[side=left]:data-open:slide-in-from-left-full data-[mobile=true]:data-[side=left]:data-closed:slide-out-to-left-full",
+            "data-[mobile=true]:data-[side=right]:data-open:slide-in-from-right-full data-[mobile=true]:data-[side=right]:data-closed:slide-out-to-right-full",
+            "data-[mobile=true]:data-open:duration-300 data-[mobile=true]:data-open:ease-[cubic-bezier(0.22,1,0.36,1)] data-[mobile=true]:data-closed:duration-200 data-[mobile=true]:data-closed:ease-[cubic-bezier(0.4,0,1,1)]"
+          )}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
             } as React.CSSProperties
           }
           side={side}
+          onCloseAutoFocus={(event) => {
+            // The sheet opens from state, not a SheetTrigger, so Radix has nowhere to return focus.
+            const trigger = document.querySelector<HTMLElement>('[data-slot="sidebar-trigger"]')
+            if (!trigger) return
+            event.preventDefault()
+            trigger.focus()
+          }}
         >
           <SheetHeader className="sr-only">
-            <SheetTitle>Sidebar</SheetTitle>
-            <SheetDescription>Displays the mobile sidebar.</SheetDescription>
+            <SheetTitle>Navigation</SheetTitle>
+            <SheetDescription>Main menu</SheetDescription>
           </SheetHeader>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
@@ -227,6 +248,7 @@ function Sidebar({
         )}
       />
       <div
+        id={sidebarId}
         data-slot="sidebar-container"
         data-side={side}
         className={cn(
@@ -256,12 +278,14 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile, open, openMobile, sidebarId } = useSidebar()
 
   return (
     <Button
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
+      aria-expanded={isMobile ? openMobile : open}
+      aria-controls={sidebarId}
       variant="ghost"
       size="icon-sm"
       className={cn(className)}
@@ -302,9 +326,14 @@ function SidebarRail({ className, ...props }: React.ComponentProps<"button">) {
   )
 }
 
-function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
+/**
+ * The content column beside the sidebar. A plain `div` rather than `<main>`: the page header lives
+ * in here too, and a `<header>` inside `<main>` loses its banner landmark. Pages render their own
+ * `<main>` inside the inset.
+ */
+function SidebarInset({ className, ...props }: React.ComponentProps<"div">) {
   return (
-    <main
+    <div
       data-slot="sidebar-inset"
       className={cn(
         "relative flex w-full flex-1 flex-col bg-background md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",

@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils"
 
 /** Shared class for the white glance cards under the schedule. */
 export const glanceCardClassName =
-  "h-full min-h-[277px] gap-2.5 rounded-[1.75rem] pt-[22px] pb-6 ring-0 [--card-spacing:23px]"
+  "h-full min-h-[277px] gap-3 rounded-[1.75rem] py-6 ring-0 [--card-spacing:23px]"
 
 /** Round icon chip followed by the card title, as in "Open shifts" and "Overtime watch". */
 export function CardHeading({
@@ -30,11 +30,11 @@ export function CardHeading({
       id={id}
       role="heading"
       aria-level={2}
-      className={cn("flex items-center gap-[9px] text-xl leading-7 font-normal", className)}
+      className={cn("flex items-center gap-3 text-xl leading-7 font-normal", className)}
     >
       <motion.span
         aria-hidden
-        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-panel text-foreground"
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-panel text-foreground"
         initial={{ scale: 0.4, rotate: -30, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
         transition={{ type: "spring", stiffness: 420, damping: 18, delay }}

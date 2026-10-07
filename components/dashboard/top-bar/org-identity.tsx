@@ -11,9 +11,10 @@ export function OrgIdentity() {
         {AGENCY.initials}
       </div>
       <div className="flex min-w-0 flex-col sm:mt-0.5">
-        <h1 className="truncate text-[15px] leading-[22px] font-medium text-foreground sm:text-[16.5px]">
+        {/* The agency is context, not the page subject: "Schedule" is the page's h1. */}
+        <p className="truncate text-[15px] leading-[22px] font-medium text-foreground sm:text-[16.5px]">
           {AGENCY.name}
-        </h1>
+        </p>
         <p className="hidden truncate text-[15px] leading-[22px] text-muted-foreground sm:block">
           Schedule · {AGENCY.dateLabel}
         </p>

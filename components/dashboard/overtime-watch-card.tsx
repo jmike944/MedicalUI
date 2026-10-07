@@ -7,7 +7,8 @@ import { AnimatePresence, motion } from "motion/react"
 
 import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import { CardHeading, glanceCardClassName } from "@/components/dashboard/cards/card-heading"
-import { useEntranceDelay } from "@/components/dashboard/cards/use-entrance-delay"
+import { SparkleBurst } from "@/components/dashboard/cards/sparkle-burst"
+import { useEntranceTiming } from "@/components/dashboard/cards/use-entrance-timing"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { Reveal } from "@/components/dashboard/reveal"
 import { isOvertimeRisk, useSchedule } from "@/components/dashboard/schedule-store"
@@ -19,8 +20,11 @@ import { formatHours } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
 
 const CARD_DELAY = 0.5
-/** How long a caregiver who just dropped below the threshold stays on screen, so the bar can drain first. */
-const LINGER_MS = 1100
+/**
+ * How long a caregiver who just dropped below the threshold stays on screen, so the bar can
+ * drain and the savings can land before the row leaves.
+ */
+const LINGER_MS = 1600
 
 /**
  * Caregivers at risk of overtime, plus any who just dropped below the threshold.
@@ -49,10 +53,22 @@ function useOvertimeRows() {
   return caregivers.filter((c) => isOvertimeRisk(c) || lingering.includes(c.id))
 }
 
+/** The most recent drop in a caregiver's hours, with an id so each drop can animate once. */
+function useHoursDrop(hours: number) {
+  const [previous, setPrevious] = React.useState(hours)
+  const [drop, setDrop] = React.useState<{ id: number; amount: number } | null>(null)
+  if (hours !== previous) {
+    setPrevious(hours)
+    if (hours < previous) setDrop((last) => ({ id: (last?.id ?? 0) + 1, amount: previous - hours }))
+  }
+  return drop
+}
+
 export function OvertimeWatchCard() {
   const rows = useOvertimeRows()
   const titleId = React.useId()
-  const listDelay = useEntranceDelay(CARD_DELAY + 0.25)
+  // One first-paint window for the whole card, so rows that appear later animate right away.
+  const entrance = useEntranceTiming(CARD_DELAY + 2.2)
 
   return (
     <Reveal delay={CARD_DELAY} className="h-full">
@@ -64,7 +80,7 @@ export function OvertimeWatchCard() {
         </CardHeader>
 
         <CardContent className="flex flex-1 flex-col">
-          <ul className="relative mt-1 flex flex-col gap-3.5">
+          <ul className="relative mt-0.5 flex flex-col gap-[13px]">
             <AnimatePresence mode="popLayout">
               {rows.map((caregiver, index) => (
                 <motion.li
@@ -79,7 +95,7 @@ export function OvertimeWatchCard() {
                       type: "spring",
                       stiffness: 360,
                       damping: 28,
-                      delay: listDelay > 0 ? listDelay + index * 0.08 : 0,
+                      delay: entrance.at(CARD_DELAY + 0.25 + index * 0.08),
                     },
                   }}
                   exit={{
@@ -87,10 +103,14 @@ export function OvertimeWatchCard() {
                     scale: 0.95,
                     y: -6,
                     filter: "blur(4px)",
-                    transition: { duration: 0.3, ease: [0.4, 0, 1, 1] },
+                    // Fade out ahead of the row below sliding up into its place.
+                    transition: { duration: 0.3, ease: [0.4, 0, 1, 1], opacity: { duration: 0.18 } },
                   }}
                 >
-                  <OvertimeRow caregiver={caregiver} delay={CARD_DELAY + 0.35 + index * 0.08} />
+                  <OvertimeRow
+                    caregiver={caregiver}
+                    delay={entrance.at(CARD_DELAY + 0.35 + index * 0.08)}
+                  />
                 </motion.li>
               ))}
             </AnimatePresence>
@@ -126,30 +146,54 @@ export function OvertimeWatchCard() {
   )
 }
 
-function OvertimeRow({ caregiver, delay: entranceDelay }: { caregiver: Caregiver; delay: number }) {
+function OvertimeRow({ caregiver, delay }: { caregiver: Caregiver; delay: number }) {
   const { name, avatar, weeklyHours, weeklyLimit } = caregiver
-  const delay = useEntranceDelay(entranceDelay)
   const atRisk = isOvertimeRisk(caregiver)
   const decimals = Number.isInteger(weeklyHours) ? 0 : 1
+  const drop = useHoursDrop(weeklyHours)
 
   return (
     <>
-      <PersonAvatar name={name} src={avatar} className="size-[42px]" />
+      <span className="relative flex shrink-0">
+        <PersonAvatar name={name} src={avatar} className="size-[42px]" />
+        {/* Out of the danger zone: celebrate before the row leaves. */}
+        {atRisk ? null : <SparkleBurst />}
+      </span>
       <div className="flex min-w-0 flex-1 flex-col gap-[5px]">
         <div className="flex items-baseline justify-between gap-2">
           <span className="truncate text-[15px] leading-5 font-medium tracking-[-0.02em]">{name}</span>
           <span
             className={cn(
-              "shrink-0 text-sm leading-5 text-warning-foreground tabular-nums transition-colors duration-500",
+              "relative shrink-0 text-sm leading-5 text-warning-foreground tabular-nums transition-colors duration-500",
               !atRisk && "text-muted-foreground"
             )}
           >
             <AnimatedNumber value={weeklyHours} decimals={decimals} delay={delay} /> of {weeklyLimit} h
+            {drop ? <SavedChip key={drop.id} amount={drop.amount} /> : null}
           </span>
         </div>
         <HoursBar caregiver={caregiver} delay={delay} />
       </div>
     </>
+  )
+}
+
+/** "−1.5 h" that floats up off the hours label when a caregiver's load drops. */
+function SavedChip({ amount }: { amount: number }) {
+  return (
+    <motion.span
+      aria-hidden
+      className="pointer-events-none absolute right-0 bottom-full rounded-full bg-primary px-1.5 text-xs leading-5 font-medium text-primary-foreground"
+      initial={{ opacity: 0, y: 10, scale: 0.7 }}
+      animate={{ opacity: [0, 1, 1, 0], y: -2, scale: 1 }}
+      transition={{
+        y: { type: "spring", stiffness: 400, damping: 25 },
+        scale: { type: "spring", stiffness: 400, damping: 25 },
+        opacity: { duration: 1.5, times: [0, 0.12, 0.7, 1] },
+      }}
+    >
+      −{formatHours(amount)}
+    </motion.span>
   )
 }
 

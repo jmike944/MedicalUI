@@ -25,8 +25,6 @@ function isTypingTarget(target: EventTarget | null) {
 export function TopBar() {
   const [search, setSearch] = React.useState({ open: false, query: "" })
   const [shortcutsOpen, setShortcutsOpen] = React.useState(false)
-  // Focus comes back to the header field when the palette closes; don't reopen it then.
-  const skipFocusOpenRef = React.useRef(false)
 
   const openSearch = React.useCallback((query = "") => setSearch({ open: true, query }), [])
   const setSearchOpen = React.useCallback(
@@ -75,11 +73,7 @@ export function TopBar() {
           <OrgIdentity />
         </motion.div>
         <motion.div variants={entranceItem} className="hidden min-w-0 flex-1 lg:block lg:max-w-[400px]">
-          <SearchField
-            open={search.open}
-            onOpen={openSearch}
-            skipFocusOpenRef={skipFocusOpenRef}
-          />
+          <SearchField open={search.open} onOpen={openSearch} />
         </motion.div>
         <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-2">
           <motion.div variants={entranceItem} className="lg:hidden">
@@ -105,12 +99,6 @@ export function TopBar() {
         onOpenChange={setSearchOpen}
         query={search.query}
         onQueryChange={setSearchQuery}
-        onCloseAutoFocus={() => {
-          skipFocusOpenRef.current = true
-          window.setTimeout(() => {
-            skipFocusOpenRef.current = false
-          }, 0)
-        }}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
     </>

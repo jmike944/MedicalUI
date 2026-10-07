@@ -2,11 +2,12 @@
 
 import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { AiBeautifyIcon, ArrowRight02Icon } from "@hugeicons/core-free-icons"
-import { AnimatePresence, motion, type Variants } from "motion/react"
+import { ArrowRight02Icon, SparklesIcon } from "@hugeicons/core-free-icons"
+import { AnimatePresence, motion, useAnimate, useReducedMotion, type Variants } from "motion/react"
 
-import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import { describeSuggestions, plural } from "@/components/dashboard/cards/copilot-copy"
+import { RollingNumber } from "@/components/dashboard/cards/rolling-number"
+import { SparkleBurst } from "@/components/dashboard/cards/sparkle-burst"
 import { Reveal } from "@/components/dashboard/reveal"
 import { useSchedule } from "@/components/dashboard/schedule-store"
 import { Badge } from "@/components/ui/badge"
@@ -16,9 +17,13 @@ import { Spinner } from "@/components/ui/spinner"
 
 type CopilotState = "ready" | "optimizing" | "clear"
 
+/** Finds the card's main button, so the suggestions sheet can hand focus back to it. */
+export const COPILOT_CTA_SELECTOR = "[data-copilot-cta]"
+
 const swap = {
   initial: { opacity: 0, y: 14, filter: "blur(6px)" },
-  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  // Drop the filter once settled so the text doesn't keep an extra compositing layer.
+  animate: { opacity: 1, y: 0, filter: "blur(0px)", transitionEnd: { filter: "none" } },
   exit: { opacity: 0, y: -14, filter: "blur(6px)" },
   transition: { type: "spring", stiffness: 300, damping: 30 },
 } as const
@@ -38,6 +43,20 @@ const arrowVariants: Variants = {
   hover: { opacity: 1, x: 0 },
 }
 
+/**
+ * Counts how many times the queue has just been cleared (ready → caught up), so the card can
+ * celebrate each time. Starting out caught up, or finishing an optimizer run, doesn't count.
+ */
+function useClearedCount(state: CopilotState) {
+  const [previous, setPrevious] = React.useState(state)
+  const [cleared, setCleared] = React.useState(0)
+  if (state !== previous) {
+    setPrevious(state)
+    if (previous === "ready" && state === "clear") setCleared((n) => n + 1)
+  }
+  return cleared
+}
+
 export function AiCopilotCard() {
   const {
     suggestions,
@@ -53,6 +72,7 @@ export function AiCopilotCard() {
   const titleId = React.useId()
   const count = suggestions.length
   const state: CopilotState = optimizing ? "optimizing" : count > 0 ? "ready" : "clear"
+  const cleared = useClearedCount(state)
 
   const subtitle =
     state === "optimizing"
@@ -73,42 +93,45 @@ export function AiCopilotCard() {
       <Card
         role="region"
         aria-labelledby={titleId}
-        className="relative h-full min-h-[277px] gap-0 rounded-[1.75rem] bg-copilot pb-[25px] text-primary-foreground ring-0 [--card-spacing:28px]"
+        className="relative h-full min-h-[277px] gap-0 rounded-[1.75rem] bg-copilot pb-7 text-primary-foreground ring-0 [--card-spacing:28px]"
       >
-        <DecorativeOrb />
+        <DecorativeOrb pulse={cleared} />
         <Sheen fast={state === "optimizing"} />
 
         <CardHeader className="relative gap-0">
-          <Badge className="h-[26px] gap-1 bg-background pr-2.5 pl-2 text-[13px] text-foreground">
-            <motion.span
-              aria-hidden
-              className="flex"
-              animate={{ rotate: [0, -16, 12, 0], scale: [1, 1.28, 0.94, 1] }}
-              transition={{
-                duration: 1.1,
-                ease: "easeInOut",
-                repeat: Infinity,
-                repeatDelay: 3.4,
-                delay: 1.2,
-              }}
-            >
-              <HugeiconsIcon icon={AiBeautifyIcon} strokeWidth={2} className="size-3.5" />
-            </motion.span>
-            AI Copilot
-          </Badge>
+          <span className="relative flex w-fit">
+            <Badge className="h-6 bg-background pr-3 pl-2.5 text-foreground">
+              {/* Wiggle a wrapper rather than the SVG itself, so the transform stays on the GPU. */}
+              <motion.span
+                aria-hidden
+                className="flex"
+                animate={{ rotate: [0, -16, 12, 0], scale: [1, 1.28, 0.94, 1] }}
+                transition={{
+                  duration: 1.1,
+                  ease: "easeInOut",
+                  repeat: Infinity,
+                  repeatDelay: 3.4,
+                  delay: 1.2,
+                }}
+              >
+                <HugeiconsIcon icon={SparklesIcon} size={12} strokeWidth={2.8} />
+              </motion.span>
+              AI Copilot
+            </Badge>
+            {cleared > 0 ? <SparkleBurst key={cleared} tone="inverse" spreadX={1.7} /> : null}
+          </span>
 
           <CardTitle
             id={titleId}
             role="heading"
             aria-level={2}
-            className="relative mt-[13px] text-[27px] leading-9 font-medium tracking-[-0.01em]"
+            className="relative mt-3 text-[27px] leading-9 font-medium tracking-[-0.01em]"
           >
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span key={state} className="block" {...swap}>
                 {state === "ready" ? (
                   <>
-                    <AnimatedNumber value={count} delay={0.5} />{" "}
-                    {plural(count, "suggestion", "suggestions")} ready
+                    <RollingNumber value={count} /> {plural(count, "suggestion", "suggestions")} ready
                   </>
                 ) : state === "optimizing" ? (
                   "Finding savings…"
@@ -121,7 +144,7 @@ export function AiCopilotCard() {
 
           <CardDescription
             aria-live="polite"
-            className="relative mt-[13px] max-w-[300px] text-[17px] leading-6 text-primary-foreground/80"
+            className="relative mt-[13px] max-w-[300px] text-[17px] leading-6 text-primary-foreground"
           >
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
@@ -140,10 +163,11 @@ export function AiCopilotCard() {
           <Button
             asChild
             size="lg"
-            className="relative h-[52px] rounded-full bg-background px-6 text-[17px] text-foreground hover:bg-background focus-visible:ring-primary-foreground/60 has-data-[icon=inline-end]:pr-6 has-data-[icon=inline-start]:pl-5"
+            className="relative h-12 rounded-full bg-background px-6 text-[17px] text-foreground hover:bg-background focus-visible:ring-primary-foreground/60 has-data-[icon=inline-end]:pr-6 has-data-[icon=inline-start]:pl-5"
           >
             <motion.button
               type="button"
+              data-copilot-cta=""
               disabled={optimizing}
               onClick={state === "ready" ? reviewAll : optimize}
               initial="rest"
@@ -180,8 +204,24 @@ export function AiCopilotCard() {
   )
 }
 
-/** Soft circle bleeding off the top-right corner; it drifts slowly. */
-function DecorativeOrb() {
+/**
+ * Soft circle bleeding off the top-right corner; it drifts slowly, and swells once
+ * each time `pulse` goes up (when the suggestion queue is cleared).
+ */
+function DecorativeOrb({ pulse }: { pulse: number }) {
+  const [scope, animate] = useAnimate<HTMLDivElement>()
+  const reduceMotion = useReducedMotion()
+
+  React.useEffect(() => {
+    if (pulse === 0 || reduceMotion || !scope.current) return
+    const controls = animate(
+      scope.current,
+      { scale: [1, 1.12, 1] },
+      { duration: 0.9, times: [0, 0.4, 1], ease: "easeInOut" }
+    )
+    return () => controls.stop()
+  }, [pulse, reduceMotion, animate, scope])
+
   return (
     <motion.div
       aria-hidden
@@ -190,7 +230,9 @@ function DecorativeOrb() {
       animate={{ scale: 1, opacity: 1 }}
       transition={{ type: "spring", stiffness: 120, damping: 20, delay: 0.45 }}
     >
-      <div className="size-full animate-float rounded-full bg-copilot-highlight" />
+      <div ref={scope} className="size-full">
+        <div className="size-full animate-float rounded-full bg-copilot-highlight" />
+      </div>
     </motion.div>
   )
 }

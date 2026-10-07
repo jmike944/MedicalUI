@@ -68,7 +68,7 @@ export function CreateMenu() {
               style={staggerDelay(index + 1, 30)}
               onSelect={() => toast(action.toast, { description: action.description })}
             >
-              <HugeiconsIcon icon={action.icon} strokeWidth={1.8} />
+              <HugeiconsIcon icon={action.icon} strokeWidth={1.8} aria-hidden />
               {action.label}
             </DropdownMenuItem>
           ))}
@@ -78,6 +78,12 @@ export function CreateMenu() {
   )
 }
 
+/**
+ * Press feedback is a CSS `scale` on :active, layered under motion's hover transform.
+ * Motion's press gesture (`whileTap`) can't be used on a Radix menu trigger: on Enter it
+ * fires a synthetic pointerdown that opens the menu just before Radix's own Enter
+ * handler toggles it shut again.
+ */
 function CreateTrigger({ open }: { open: boolean }) {
   return (
     <DropdownMenuTrigger asChild>
@@ -85,7 +91,7 @@ function CreateTrigger({ open }: { open: boolean }) {
         asChild
         variant="secondary"
         size="icon"
-        className="size-10 rounded-full border-0 text-primary hover:bg-accent md:size-12 aria-expanded:bg-accent aria-expanded:text-primary [&_svg:not([class*='size-'])]:size-6 md:[&_svg:not([class*='size-'])]:size-7"
+        className="size-10 rounded-full border-0 text-primary transition-[background-color,color,box-shadow,scale] duration-150 ease-out hover:bg-accent active:scale-90 md:size-12 aria-expanded:bg-accent aria-expanded:text-primary [&_svg:not([class*='size-'])]:size-6 md:[&_svg:not([class*='size-'])]:size-7"
       >
         <motion.button
           type="button"
@@ -93,7 +99,6 @@ function CreateTrigger({ open }: { open: boolean }) {
           initial={false}
           animate={open ? "open" : "closed"}
           whileHover={open ? undefined : "hover"}
-          whileTap={{ scale: 0.9 }}
           variants={{ closed: { scale: 1 }, open: { scale: 1 }, hover: { scale: 1.06 } }}
           transition={snappy}
         >
@@ -102,7 +107,7 @@ function CreateTrigger({ open }: { open: boolean }) {
             variants={{ closed: { rotate: 0 }, open: { rotate: 45 }, hover: { rotate: 90 } }}
             transition={{ type: "spring", stiffness: 420, damping: 18 }}
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.5} />
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.5} aria-hidden />
           </motion.span>
         </motion.button>
       </Button>

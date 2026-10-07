@@ -9,6 +9,7 @@ import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import { CardHeading, glanceCardClassName } from "@/components/dashboard/cards/card-heading"
 import { describeRequirement } from "@/components/dashboard/cards/copilot-copy"
 import { HatchedCircle } from "@/components/dashboard/cards/hatched-circle"
+import { useEntranceTiming } from "@/components/dashboard/cards/use-entrance-timing"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { Reveal } from "@/components/dashboard/reveal"
 import { isOvertimeRisk, useSchedule } from "@/components/dashboard/schedule-store"
@@ -34,6 +35,21 @@ const CARD_DELAY = 0.4
 export function OpenShiftsCard() {
   const { openShifts } = useSchedule()
   const titleId = React.useId()
+  const entrance = useEntranceTiming(CARD_DELAY + 2)
+  const listRef = React.useRef<HTMLDivElement>(null)
+  const emptyRef = React.useRef<HTMLDivElement>(null)
+
+  /**
+   * Filling a shift removes its row, Fill button and all, so put focus on the row that slid
+   * into its place (or the one above, or the empty state) instead of letting it drop to <body>.
+   */
+  const focusAfterFill = React.useCallback((index: number) => {
+    const fills = Array.from(
+      listRef.current?.querySelectorAll<HTMLElement>("[data-fill-trigger]") ?? []
+    ).filter((el) => !el.closest("[inert]"))
+    const target = fills[Math.min(index, fills.length - 1)] ?? emptyRef.current
+    target?.focus({ preventScroll: true })
+  }, [])
 
   return (
     <Reveal delay={CARD_DELAY} className="h-full">
@@ -45,18 +61,28 @@ export function OpenShiftsCard() {
           <CardAction className="row-span-1 self-center">
             <Badge
               variant="secondary"
-              className="h-7 px-[9px] text-[13px] font-normal text-secondary-foreground/80"
+              className="h-6 px-[9px] text-[13px] font-normal text-secondary-foreground/80"
             >
-              <AnimatedNumber value={openShifts.length} delay={CARD_DELAY + 0.2} duration={0.6} /> today
+              <AnimatedNumber
+                value={openShifts.length}
+                delay={entrance.at(CARD_DELAY + 0.2)}
+                duration={0.6}
+              />{" "}
+              today
             </Badge>
           </CardAction>
         </CardHeader>
 
         <CardContent className="flex flex-1 flex-col">
-          <ItemGroup className="relative gap-3">
+          <ItemGroup ref={listRef} className="relative gap-3">
             <AnimatePresence mode="popLayout">
               {openShifts.map((shift, index) => (
-                <OpenShiftRow key={shift.id} shift={shift} index={index} />
+                <OpenShiftRow
+                  key={shift.id}
+                  shift={shift}
+                  delay={entrance.at(CARD_DELAY + 0.25 + index * 0.08)}
+                  onFilled={() => focusAfterFill(index)}
+                />
               ))}
             </AnimatePresence>
           </ItemGroup>
@@ -65,7 +91,9 @@ export function OpenShiftsCard() {
             {openShifts.length === 0 ? (
               <motion.div
                 key="empty"
-                className="flex flex-1"
+                ref={emptyRef}
+                tabIndex={-1}
+                className="flex flex-1 outline-none"
                 initial={{ opacity: 0, scale: 0.94, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0, transition: { delay: 0.22 } }}
                 exit={{ opacity: 0 }}
@@ -94,11 +122,13 @@ export function OpenShiftsCard() {
 /** One uncovered shift. Inert while it animates out so a stale Fill can't fire. */
 function OpenShiftRow({
   shift,
-  index,
+  delay,
+  onFilled,
   ref,
 }: {
   shift: OpenShift
-  index: number
+  delay: number
+  onFilled: () => void
   ref?: React.Ref<HTMLDivElement>
 }) {
   const isPresent = useIsPresent()
@@ -107,7 +137,7 @@ function OpenShiftRow({
     <Item
       asChild
       role="listitem"
-      className="h-14 flex-nowrap gap-[11px] rounded-[20px] bg-panel py-0 pr-2 pl-2.5"
+      className="h-14 flex-nowrap gap-[11px] rounded-[20px] bg-panel py-0 pr-2 pl-2"
     >
       <motion.div
         ref={ref}
@@ -118,21 +148,18 @@ function OpenShiftRow({
           opacity: 1,
           y: 0,
           scale: 1,
-          transition: {
-            type: "spring",
-            stiffness: 360,
-            damping: 28,
-            delay: CARD_DELAY + 0.25 + index * 0.08,
-          },
+          transition: { type: "spring", stiffness: 360, damping: 28, delay },
         }}
+        // A short, contained exit: the row fades out in place before the next one slides up,
+        // instead of sliding across the card's padding.
         exit={{
           opacity: 0,
-          x: 56,
-          scale: 0.96,
-          transition: { duration: 0.28, ease: [0.4, 0, 1, 1] },
+          x: 16,
+          scale: 0.97,
+          transition: { duration: 0.22, ease: [0.4, 0, 1, 1], opacity: { duration: 0.16 } },
         }}
       >
-        <ItemMedia>
+        <ItemMedia className="group-has-data-[slot=item-description]/item:translate-y-0 group-has-data-[slot=item-description]/item:self-center">
           <HatchedCircle />
         </ItemMedia>
         <ItemContent className="min-w-0 gap-0">
@@ -142,7 +169,7 @@ function OpenShiftRow({
           </ItemDescription>
         </ItemContent>
         <ItemActions>
-          <FillMenu shift={shift} />
+          <FillMenu shift={shift} onFilled={onFilled} />
         </ItemActions>
       </motion.div>
     </Item>
@@ -150,10 +177,12 @@ function OpenShiftRow({
 }
 
 /** "Fill" button that lists qualified caregivers who are free for the shift. */
-function FillMenu({ shift }: { shift: OpenShift }) {
+function FillMenu({ shift, onFilled }: { shift: OpenShift; onFilled: () => void }) {
   const { availableCaregiversFor, fillOpenShift } = useSchedule()
   const options = availableCaregiversFor(shift)
   const duration = shift.end - shift.start
+  // Set when a caregiver is picked: the trigger is about to leave with its row.
+  const filled = React.useRef(false)
 
   return (
     <DropdownMenu>
@@ -163,7 +192,12 @@ function FillMenu({ shift }: { shift: OpenShift }) {
           className="relative h-9 overflow-hidden rounded-full px-3.5 text-[15px]"
           aria-label={`Fill ${shift.patient}’s shift`}
         >
-          <motion.button type="button" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.94 }}>
+          <motion.button
+            type="button"
+            data-fill-trigger=""
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.94 }}
+          >
             Fill
             <span
               aria-hidden
@@ -172,7 +206,16 @@ function FillMenu({ shift }: { shift: OpenShift }) {
           </motion.button>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuContent
+        align="end"
+        className="w-72"
+        onCloseAutoFocus={(event) => {
+          if (!filled.current) return
+          filled.current = false
+          event.preventDefault()
+          onFilled()
+        }}
+      >
         <DropdownMenuGroup>
           <DropdownMenuLabel>
             Free {formatRange(shift.start, shift.end)} · {shift.requirement} qualified
@@ -184,7 +227,10 @@ function FillMenu({ shift }: { shift: OpenShift }) {
               return (
                 <DropdownMenuItem
                   key={caregiver.id}
-                  onSelect={() => fillOpenShift(shift.id, caregiver.id)}
+                  onSelect={() => {
+                    filled.current = true
+                    fillOpenShift(shift.id, caregiver.id)
+                  }}
                 >
                   <PersonAvatar name={caregiver.name} src={caregiver.avatar} />
                   <span className="flex min-w-0 flex-1 flex-col">

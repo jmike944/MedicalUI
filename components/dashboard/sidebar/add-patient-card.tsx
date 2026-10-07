@@ -53,14 +53,14 @@ export function AddPatientCard({ step }: { step: number }) {
         y: { ...snappySpring, delay: enterDelay(step) },
         opacity: { duration: 0.35, delay: enterDelay(step) },
       }}
-      whileTap={{ scale: 0.98 }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}
       onFocus={() => setFocused(true)}
       onBlur={(event) => {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
       }}
-      className="group/add relative flex h-[140px] flex-col items-center rounded-[24px] bg-panel pt-5 transition-colors duration-300 hover:bg-accent"
+      // Press feedback is CSS :active. A motion press gesture would make this div a tab stop.
+      className="group/add relative flex h-[140px] shrink-0 flex-col items-center rounded-[24px] bg-panel pt-5 transition-[background-color,scale] duration-300 ease-out hover:bg-accent active:scale-[0.98] active:duration-150"
     >
       <motion.svg
         aria-hidden
@@ -86,7 +86,7 @@ export function AddPatientCard({ step }: { step: number }) {
         variants={plusVariants}
         className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary/30 transition-shadow duration-300 group-hover/add:shadow-lg group-has-focus-visible/add:shadow-lg"
       >
-        <HugeiconsIcon icon={PlusSignIcon} size={20} strokeWidth={1.8} />
+        <HugeiconsIcon icon={PlusSignIcon} size={20} strokeWidth={1.8} aria-hidden />
       </motion.span>
       <button
         type="button"
@@ -101,18 +101,18 @@ export function AddPatientCard({ step }: { step: number }) {
       </button>
       <p className="mt-2 text-[14.5px] leading-5 text-muted-foreground">
         Or{" "}
-        <a
-          href="#"
-          onClick={(event) => {
-            event.preventDefault()
+        <button
+          type="button"
+          onClick={() =>
             toast("Import a referral", {
               description: "Drop in a referral PDF or fax to prefill the intake.",
             })
-          }}
-          className="relative z-[1] rounded-sm text-primary underline-offset-2 outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          }
+          // Primary nudged toward the foreground so the link clears 4.5:1 on the panel in both themes.
+          className="relative z-[1] cursor-pointer rounded-sm text-[color-mix(in_oklab,var(--primary)_84%,var(--foreground))] underline-offset-2 outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-sidebar-ring"
         >
           import a referral
-        </a>
+        </button>
       </p>
     </motion.div>
   )

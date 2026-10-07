@@ -12,7 +12,7 @@ import {
 import { motion, useReducedMotion, type Variants } from "motion/react"
 
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
-import { useSchedule } from "@/components/dashboard/schedule-store"
+import { useScheduleActions, useScheduleData } from "@/components/dashboard/schedule-store"
 import {
   openShiftBlockStyle,
   suggestionBlockStyle,
@@ -40,12 +40,28 @@ import {
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { openShifts as initialOpenShifts, type OpenShift, type Visit } from "@/lib/schedule-data"
+import {
+  DAY_END,
+  openShifts as initialOpenShifts,
+  type Caregiver,
+  type OpenShift,
+  type Visit,
+} from "@/lib/schedule-data"
 import { formatHours, formatRange, formatTime } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
 
-import { useBoard, useIntro } from "./board-context"
-import { CLIP_HIDDEN, CLIP_SHOWN, EASE_OUT, GLIDE, HATCH_BASE, blockPosition } from "./timeline-layout"
+import { useIntro, useSpotlit } from "./board-context"
+import {
+  BOUNCY,
+  CLIP_HIDDEN,
+  CLIP_SHOWN,
+  EASE_OUT,
+  GLIDE,
+  HATCH_BASE,
+  POP,
+  blockPosition,
+  ghostDelay,
+} from "./timeline-layout"
 
 /**
  * Visits that started life as an open shift keep its id, so they can shed their hatching on arrival
@@ -53,8 +69,21 @@ import { CLIP_HIDDEN, CLIP_SHOWN, EASE_OUT, GLIDE, HATCH_BASE, blockPosition } f
  */
 const openShiftLabels = new Map(initialOpenShifts.map((shift) => [shift.id, shift.shortLabel]))
 
+/*
+ * Shared block chrome. Focus uses a solid 2px outline with an offset (4.5:1 on the card), drawn as
+ * an outline so it never fights the inset rings some statuses use for their border.
+ */
 const blockBase =
-  "relative flex size-full items-center overflow-hidden rounded-full pr-1 pl-[7px] text-left text-[13px] font-medium outline-none transition-[box-shadow,filter] duration-200 hover:shadow-sm hover:brightness-[1.02] focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[state=open]:shadow-sm"
+  "relative flex size-full items-center overflow-hidden rounded-full pr-1 pl-[7px] text-left text-[12.5px] font-medium outline-none transition-[box-shadow,filter] duration-200 hover:shadow-sm hover:brightness-[1.02] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid data-[state=open]:shadow-sm"
+
+/** Dimmed, dashed treatment for the source of a previewed AI move. */
+const pendingSource = "outline-1 outline-offset-1 outline-primary/50 outline-dashed"
+
+/** Opacity for a block under the legend spotlight and the AI preview. */
+function blockOpacity(spotlit: boolean, pendingMove: boolean) {
+  if (!spotlit) return 0.22
+  return pendingMove ? 0.5 : 1
+}
 
 /**
  * Left-to-right clip reveal used on first paint. The reveal is decided once at mount, so later
@@ -74,14 +103,42 @@ function useReveal(delay: number) {
   }
 }
 
+/**
+ * When a visit lands (a filled shift or an accepted move), the control the user acted on goes away.
+ * If focus fell to the page or is still on the departing copy of this visit, hand it to the new
+ * block so keyboard users keep their place. `quiet` is raised while focusing, so the handover
+ * doesn't pop the details card open by itself.
+ */
+function useFocusOnArrival<T extends HTMLElement>(id: string, arrived: boolean) {
+  const ref = React.useRef<T>(null)
+  const quiet = React.useRef(false)
+  React.useEffect(() => {
+    if (!arrived) return
+    const claim = () => {
+      const node = ref.current
+      if (!node || !node.isConnected) return
+      const active = document.activeElement
+      const lost = active === null || active === document.body
+      const stale = active instanceof HTMLElement && active !== node && active.dataset.visitId === id
+      if (!lost && !stale) return
+      quiet.current = true
+      node.focus({ preventScroll: true })
+      quiet.current = false
+    }
+    claim()
+    // The departing control may still be fading out; check again once exits have finished.
+    const timeout = window.setTimeout(claim, 450)
+    return () => window.clearTimeout(timeout)
+  }, [id, arrived])
+  return { ref, quiet }
+}
+
 const detailItem: Variants = {
   hidden: { opacity: 0, y: 4 },
   show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: EASE_OUT } },
 }
 
-function VisitDetails({ visit }: { visit: Visit }) {
-  const { caregiverById } = useSchedule()
-  const caregiver = caregiverById(visit.caregiverId)
+function VisitDetails({ visit, caregiver }: { visit: Visit; caregiver: Caregiver }) {
   const status = visitStatusStyles[visit.status]
 
   return (
@@ -121,17 +178,15 @@ function VisitDetails({ visit }: { visit: Visit }) {
           <dd>{visit.address}</dd>
         </div>
       </motion.dl>
-      {caregiver ? (
-        <motion.div variants={detailItem} className="flex items-center gap-2">
-          <PersonAvatar name={caregiver.name} src={caregiver.avatar} size="sm" />
-          <span className="font-medium">{caregiver.name}</span>
-          <span className="text-muted-foreground">{caregiver.role}</span>
-        </motion.div>
-      ) : null}
+      <motion.div variants={detailItem} className="flex items-center gap-2">
+        <PersonAvatar name={caregiver.name} src={caregiver.avatar} size="sm" />
+        <span className="font-medium">{caregiver.name}</span>
+        <span className="text-muted-foreground">{caregiver.role}</span>
+      </motion.div>
+      {/* Static detail revealed on demand, so no live region: it shouldn't be re-announced. */}
       {visit.status === "attention" && visit.alert ? (
         <motion.p
           variants={detailItem}
-          role="alert"
           className="flex items-start gap-2 rounded-xl bg-attention px-3 py-2.5 text-attention-foreground"
         >
           <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="mt-px size-4 shrink-0" />
@@ -142,48 +197,72 @@ function VisitDetails({ visit }: { visit: Visit }) {
   )
 }
 
-/** A visit on a caregiver's row. Glides between rows via its layoutId when it is reassigned. */
-export function VisitBlock({
+/**
+ * A visit on a caregiver's row. Hover, focus, tap or Enter shows its details; it glides between rows
+ * via its layoutId when it is reassigned. Memoized: blocks only re-render when their own visit,
+ * highlight or preview state changes, and the legend spotlight reaches them through `useSpotlit`.
+ */
+export const VisitBlock = React.memo(function VisitBlock({
   visit,
+  caregiver,
   delay,
   pendingMove = false,
+  highlighted = false,
   ref,
 }: {
   visit: Visit
+  /** The caregiver whose lane this is, for the accessible name and the details card. */
+  caregiver: Caregiver
   /** Entrance delay for the first-paint reveal. */
   delay: number
   /** Source of a previewed AI reassignment: drawn dimmed and dashed. */
   pendingMove?: boolean
+  /** The visit just moved here: flash it and take focus if the old control vanished. */
+  highlighted?: boolean
   ref?: React.Ref<HTMLDivElement>
 }) {
-  const { highlightedVisitId } = useSchedule()
-  const { activeSpotlight } = useBoard()
   const status = visitStatusStyles[visit.status]
-  const highlighted = highlightedVisitId === visit.id
-  const spotlit = activeSpotlight === null || activeSpotlight === visit.status
+  const spotlit = useSpotlit(visit.status)
   const reveal = useReveal(delay)
   const shortLabel = openShiftLabels.get(visit.id)
+  const detailsId = React.useId()
+  const [open, setOpen] = React.useState(false)
+
+  const { ref: buttonRef, quiet: quietFocus } = useFocusOnArrival<HTMLButtonElement>(
+    visit.id,
+    highlighted
+  )
 
   return (
     <motion.div
       ref={ref}
       layout
       layoutId={visit.id}
+      layoutDependency={visit.caregiverId}
       className="absolute inset-y-0 my-auto h-8"
       style={blockPosition(visit.start, visit.end)}
-      animate={{ opacity: !spotlit ? 0.22 : pendingMove ? 0.5 : 1 }}
+      animate={{ opacity: blockOpacity(spotlit, pendingMove) }}
       exit={{ opacity: 0 }}
       transition={{ layout: GLIDE, opacity: { duration: 0.25 } }}
     >
-      <HoverCard openDelay={150} closeDelay={80}>
+      <HoverCard open={open} onOpenChange={setOpen} openDelay={150} closeDelay={80}>
         <HoverCardTrigger asChild>
           <motion.button
+            ref={buttonRef}
             type="button"
-            aria-label={`${visit.patient}, ${formatTime(visit.start)} to ${formatTime(visit.end)}, ${status.label}`}
+            data-visit-id={visit.id}
+            aria-label={`${visit.patient} with ${caregiver.name}, ${formatTime(visit.start)} to ${formatTime(visit.end)}, ${status.label.toLowerCase()}`}
+            aria-describedby={detailsId}
+            // Hover cards ignore touch and a click alone; tapping or pressing Enter opens the details too.
+            onClick={() => setOpen(true)}
+            onFocus={(event) => {
+              // Skips the hover card's open-on-focus for a programmatic handover.
+              if (quietFocus.current) event.preventDefault()
+            }}
             className={cn(
               blockBase,
               status.block,
-              pendingMove && "outline-1 outline-offset-1 outline-primary/50 outline-dashed",
+              pendingMove && pendingSource,
               highlighted && "ring-2 ring-primary ring-offset-2 ring-offset-card"
             )}
             initial={reveal.initial}
@@ -199,10 +278,11 @@ export function VisitBlock({
             whileTap={{ scale: 0.98 }}
           >
             {visit.status === "in-progress" ? (
+              // A live sweep across visits in progress: two passes after load, then it rests.
               <span
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-0 w-1/2 animate-shimmer"
-                style={{ animationDelay: `${(visit.start % 3) * 0.6}s` }}
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/2 animate-shimmer [animation-fill-mode:both] [animation-iteration-count:2]"
+                style={{ animationDelay: `${0.8 + (visit.start % 3) * 0.6}s` }}
               >
                 <span className="block size-full -skew-x-12 bg-linear-to-r from-transparent via-card/60 to-transparent" />
               </span>
@@ -221,28 +301,36 @@ export function VisitBlock({
           </motion.button>
         </HoverCardTrigger>
         <HoverCardContent side="top" align="start" sideOffset={8} className="w-76">
-          <VisitDetails visit={visit} />
+          <VisitDetails visit={visit} caregiver={caregiver} />
         </HoverCardContent>
       </HoverCard>
+      {/* The card's content for screen readers, read after the block's name. */}
+      <span id={detailsId} hidden>
+        {visit.service}, {visit.address}.
+        {visit.status === "attention" && visit.alert ? ` ${visit.alert}` : null}
+      </span>
     </motion.div>
   )
-}
+})
 
 /** A hatched open shift on the "Open shifts" row. Click to assign a free, qualified caregiver. */
 export function OpenShiftBlock({
   shift,
   delay,
+  pendingMove = false,
   ref,
 }: {
   shift: OpenShift
   delay: number
+  /** Source of a previewed AI fill: drawn dimmed and dashed, like a pending move. */
+  pendingMove?: boolean
   ref?: React.Ref<HTMLDivElement>
 }) {
-  const { availableCaregiversFor, fillOpenShift } = useSchedule()
-  const { activeSpotlight } = useBoard()
+  const { availableCaregiversFor } = useScheduleData()
+  const { fillOpenShift } = useScheduleActions()
+  const spotlit = useSpotlit("open-shift")
   const [open, setOpen] = React.useState(false)
   const reveal = useReveal(delay)
-  const spotlit = activeSpotlight === null || activeSpotlight === "open-shift"
   const candidates = availableCaregiversFor(shift).slice(0, 3)
 
   const assign = (caregiverId: string) => {
@@ -252,13 +340,15 @@ export function OpenShiftBlock({
   }
 
   return (
+    // No `layout`: the block is absolutely placed and never reflows. The hand-off to the filled
+    // visit runs through the shared layoutId, and the constant dependency skips re-measuring it.
     <motion.div
       ref={ref}
-      layout
       layoutId={shift.id}
+      layoutDependency={shift.id}
       className="absolute inset-y-0 my-auto h-8"
       style={blockPosition(shift.start, shift.end)}
-      animate={{ opacity: spotlit ? 1 : 0.22 }}
+      animate={{ opacity: blockOpacity(spotlit, pendingMove) }}
       exit={{ opacity: 0 }}
       transition={{ layout: GLIDE, opacity: { duration: 0.25 } }}
     >
@@ -266,8 +356,15 @@ export function OpenShiftBlock({
         <PopoverTrigger asChild>
           <motion.button
             type="button"
+            data-visit-id={shift.id}
             aria-label={`Open shift for ${shift.patient}, ${formatRange(shift.start, shift.end)}, needs ${shift.requirement}. Assign a caregiver`}
-            className={cn(blockBase, "animate-hatch-march", openShiftBlockStyle)}
+            // The stripes march only while the shift is hovered, focused or being assigned.
+            className={cn(
+              blockBase,
+              "hover:animate-hatch-march focus-visible:animate-hatch-march data-[state=open]:animate-hatch-march",
+              openShiftBlockStyle,
+              pendingMove && pendingSource
+            )}
             style={HATCH_BASE}
             initial={reveal.initial}
             animate={reveal.animate}
@@ -324,14 +421,16 @@ export function OpenShiftBlock({
   )
 }
 
-/** Ghost of a pending AI suggestion, drawn where the visit would land. Opens the suggestions sheet. */
+/**
+ * Ghost of a pending AI suggestion, drawn where the visit would land. Opens the suggestions sheet.
+ * Ghosts materialize left to right, in the wake of the optimizer's sweep.
+ */
 export function SuggestionGhost({
   label,
   title,
   description,
   start,
   end,
-  index,
   ref,
 }: {
   label: string
@@ -339,34 +438,38 @@ export function SuggestionGhost({
   description: string
   start: number
   end: number
-  index: number
   ref?: React.Ref<HTMLDivElement>
 }) {
-  const { setSuggestionsOpen } = useSchedule()
-  const { activeSpotlight } = useBoard()
+  const { setSuggestionsOpen } = useScheduleActions()
+  const spotlit = useSpotlit("suggestion")
   const reduceMotion = useReducedMotion()
-  const spotlit = activeSpotlight === null || activeSpotlight === "suggestion"
+  const delay = ghostDelay(start)
 
   return (
     <motion.div
       ref={ref}
       className="absolute inset-y-0 z-10 my-auto h-8"
       style={blockPosition(start, end)}
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: spotlit ? 1 : 0.22, scale: 1 }}
+      initial={{ opacity: 0, scale: 0.8, filter: "blur(4px)" }}
+      animate={{ opacity: spotlit ? 1 : 0.22, scale: 1, filter: "blur(0px)", transitionEnd: { filter: "none" } }}
       exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
       transition={{
-        opacity: { delay: 0.15 + index * 0.14, duration: 0.3 },
-        scale: { delay: 0.15 + index * 0.14, type: "spring", stiffness: 420, damping: 24 },
+        opacity: { delay, duration: 0.3 },
+        filter: { delay, duration: 0.35 },
+        scale: { ...POP, delay },
       }}
     >
-      {/* Sparkle badge on the corner, so short ghosts keep their full label. */}
+      {/* Sparkle badge on the corner, so short ghosts keep their full label. At the end of the
+          day it tucks in, so it never pokes past the track and makes the timeline scroll. */}
       <motion.span
         aria-hidden
-        className="pointer-events-none absolute -top-1.5 -right-1 z-10 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
+        className={cn(
+          "pointer-events-none absolute -top-1.5 z-10 flex size-4 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm",
+          end >= DAY_END ? "-right-0.5" : "-right-1"
+        )}
         initial={{ scale: 0, rotate: -45 }}
         animate={{ scale: 1, rotate: 0 }}
-        transition={{ delay: 0.35 + index * 0.14, type: "spring", stiffness: 520, damping: 18 }}
+        transition={{ ...BOUNCY, delay: delay + 0.2 }}
       >
         <HugeiconsIcon icon={SparklesIcon} strokeWidth={2.2} className="size-2.5" />
       </motion.span>
@@ -377,9 +480,10 @@ export function SuggestionGhost({
             aria-label={`AI suggestion: ${title}. Review suggestions`}
             onClick={() => setSuggestionsOpen(true)}
             className={cn(blockBase, "hover:brightness-100", suggestionBlockStyle)}
+            // Two soft breaths to draw the eye, then it holds still.
             animate={reduceMotion ? undefined : { opacity: [1, 0.7, 1] }}
-            transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: index * 0.4 }}
-            whileHover={{ y: -1, opacity: 1 }}
+            transition={{ duration: 2.4, repeat: 1, ease: "easeInOut", delay: delay + 0.4 }}
+            whileHover={{ y: -1, opacity: 1, transition: { duration: 0.15 } }}
             whileTap={{ scale: 0.97 }}
           >
             <span className="truncate">{label}</span>

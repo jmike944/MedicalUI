@@ -51,7 +51,7 @@ export function SidebarLogo() {
         className="flex size-9 items-center justify-center rounded-full bg-sidebar-primary text-in-progress"
       >
         <motion.span variants={crossVariants} className="flex">
-          <HugeiconsIcon icon={PlusSignIcon} size={20} strokeWidth={6.5} />
+          <HugeiconsIcon icon={PlusSignIcon} size={20} strokeWidth={6.5} aria-hidden />
         </motion.span>
       </motion.span>
       <motion.span

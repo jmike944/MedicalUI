@@ -48,7 +48,7 @@ export function CountBadge({ value, delay = 0 }: { value: number; delay?: number
       >
         <span
           ref={scope}
-          className="relative flex h-6 min-w-6 items-center justify-center overflow-hidden rounded-full bg-sidebar-primary px-1.5 text-xs font-medium text-sidebar-primary-foreground tabular-nums"
+          className="relative flex h-6 min-w-6 items-center justify-center overflow-hidden rounded-full bg-sidebar-primary px-1 text-xs font-medium text-sidebar-primary-foreground tabular-nums"
         >
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>
             <motion.span

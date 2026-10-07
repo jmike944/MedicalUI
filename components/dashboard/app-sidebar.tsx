@@ -17,7 +17,6 @@ import {
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -30,12 +29,17 @@ import { NavItem } from "./sidebar/nav-item"
 import { OnShiftGroup } from "./sidebar/on-shift-group"
 import { ScheduleNavItem } from "./sidebar/schedule-nav-item"
 import { SidebarLogo } from "./sidebar/sidebar-logo"
+import { useScrollFade } from "./sidebar/use-scroll-fade"
 
 /**
  * CareOps navigation. Rows cascade in top to bottom after the logo, the active
  * row's pill glides between entries, and each section collapses from its label.
+ * "Add a patient" rests at the bottom when everything fits and scrolls with the
+ * rows on short screens, where the edges fade to show there is more.
  */
 export function AppSidebar() {
+  const contentRef = useScrollFade<HTMLDivElement>()
+
   return (
     <Sidebar collapsible="offcanvas" className="border-r-0 group-data-[side=left]:border-r-0">
       <SidebarNavProvider defaultActiveId="schedule">
@@ -43,7 +47,10 @@ export function AppSidebar() {
           <SidebarLogo />
         </SidebarHeader>
 
-        <SidebarContent className="gap-0 pt-[32px] pr-[25px] pl-[23px]">
+        <SidebarContent
+          ref={contentRef}
+          className="gap-0 pt-[32px] pr-[25px] pb-6 pl-[23px] data-scroll-fade:[mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top),#000_calc(100%_-_var(--fade-bottom)),transparent)]"
+        >
           <NavGroup label="Menu" step={0}>
             <SidebarMenu className="gap-1">
               <NavItem id="overview" label="Overview" icon={DashboardSquare01Icon} step={1} />
@@ -100,11 +107,11 @@ export function AppSidebar() {
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
-        </SidebarContent>
 
-        <SidebarFooter className="gap-0 pt-0 pr-[25px] pb-6 pl-[23px]">
-          <AddPatientCard step={17} />
-        </SidebarFooter>
+          <div className="mt-auto shrink-0 pt-3">
+            <AddPatientCard step={17} />
+          </div>
+        </SidebarContent>
       </SidebarNavProvider>
     </Sidebar>
   )

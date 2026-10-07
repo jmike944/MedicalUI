@@ -49,7 +49,12 @@ export function formatRange(start: number, end: number) {
     : `${formatTime(start)} to ${formatTime(end)}`
 }
 
+/** Whole numbers stay whole, anything else gets one decimal: 2 → "2", 1.5 → "1.5". */
+export function formatDecimal(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1)
+}
+
 /** 1.5 → "1.5 h", 2 → "2 h". */
 export function formatHours(hours: number) {
-  return `${Number.isInteger(hours) ? hours : hours.toFixed(1)} h`
+  return `${formatDecimal(hours)} h`
 }

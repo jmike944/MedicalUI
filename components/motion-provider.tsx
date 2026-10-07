@@ -1,12 +1,18 @@
 "use client"
 
-import { MotionConfig } from "motion/react"
+import { MotionConfig, useReducedMotion } from "motion/react"
 
-/** Shared motion defaults. `reducedMotion="user"` honours the OS "reduce motion" setting everywhere. */
+/**
+ * Shared motion defaults. With the OS "reduce motion" setting on, every motion animation (entrance
+ * fades, blurs and their delays included, not just transforms) completes instantly, so content is
+ * there as soon as the page hydrates. CSS animations are handled in globals.css.
+ */
 export function MotionProvider({ children }: { children: React.ReactNode }) {
+  const reduceMotion = useReducedMotion() ?? false
   return (
     <MotionConfig
       reducedMotion="user"
+      skipAnimations={reduceMotion}
       transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.8 }}
     >
       {children}

@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { AnimatePresence, motion, type Variants } from "motion/react"
 
@@ -8,6 +9,7 @@ import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { CountBadge } from "./count-badge"
 import { bouncySpring, enterDelay, pillSpring, snappySpring } from "./motion"
 import { useSidebarNav } from "./nav-context"
+import { useNavGroup } from "./nav-group"
 
 const rowVariants: Variants = {
   hidden: { opacity: 0, x: -8 },
@@ -29,7 +31,8 @@ const iconVariants: Variants = {
 
 /**
  * One sidebar destination. The active row hosts the shared highlight pill, so
- * picking another row makes the pill glide over to it.
+ * picking another row makes the pill glide over to it. While its section is
+ * collapsed, the section label hosts the pill instead.
  */
 export function NavItem({
   id,
@@ -51,7 +54,12 @@ export function NavItem({
   size?: "default" | "compact"
 }) {
   const { activeId, select } = useSidebarNav()
+  const group = useNavGroup()
+  const register = group?.register
+  React.useEffect(() => register?.(id), [register, id])
+
   const isActive = activeId === id
+  const hostsPill = isActive && (group?.open ?? true)
   const showBadge = badge !== undefined && badge > 0
 
   return (
@@ -60,7 +68,7 @@ export function NavItem({
         asChild
         isActive={isActive}
         className={cn(
-          "relative gap-3 overflow-visible rounded-[18px] px-3 transition-colors duration-200 hover:bg-sidebar-accent/50 data-active:bg-transparent data-active:font-semibold [&_svg]:size-5",
+          "relative gap-3 overflow-visible rounded-[18px] px-3 text-muted-foreground transition-colors duration-200 hover:bg-sidebar-accent/50 data-active:bg-transparent data-active:font-semibold [&_svg]:size-5",
           size === "compact" ? "h-[38px] text-[15px]" : "h-10 text-base"
         )}
       >
@@ -78,7 +86,7 @@ export function NavItem({
           whileHover="hover"
           whileTap="tap"
         >
-          {isActive ? (
+          {hostsPill ? (
             <motion.span
               layoutId="sidebar-active-pill"
               aria-hidden
@@ -88,7 +96,7 @@ export function NavItem({
             />
           ) : null}
           <motion.span variants={iconVariants} className="relative z-[1] flex shrink-0">
-            <HugeiconsIcon icon={icon} strokeWidth={1.6} />
+            <HugeiconsIcon icon={icon} strokeWidth={1.6} aria-hidden />
           </motion.span>
           <span className="relative z-[1]">
             {label}
