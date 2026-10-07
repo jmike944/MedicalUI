@@ -17,9 +17,14 @@ import {
 } from "@hugeicons/core-free-icons"
 
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
-import { isOvertimeRisk, useSchedule } from "@/components/dashboard/schedule-store"
-import { staggerDelay } from "@/components/dashboard/top-bar/motion"
-import { useRestoreFocus } from "@/components/dashboard/top-bar/use-restore-focus"
+import {
+  isOvertimeRisk,
+  useScheduleActions,
+  useScheduleData,
+  useScheduleUi,
+  type ScheduleActions,
+  type ScheduleData,
+} from "@/components/dashboard/schedule-store"
 import { Badge } from "@/components/ui/badge"
 import {
   Command,
@@ -47,6 +52,8 @@ import {
 import { Kbd } from "@/components/ui/kbd"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
+import { useRestoreFocus } from "@/hooks/use-restore-focus"
+import { staggerDelay } from "@/lib/motion"
 import type { OpenShift, Visit } from "@/lib/schedule-data"
 import { formatRange, formatTime } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
@@ -58,6 +65,21 @@ const CLAIMS = [
 ] as const
 
 type PatientResult = { name: string; times: string; detail: string }
+
+type PaletteProps = {
+  /** False while the dialog animates closed. */
+  open: boolean
+  inputRef: React.RefObject<HTMLInputElement | null>
+  query: string
+  onQueryChange: (query: string) => void
+  onClose: () => void
+}
+
+type PaletteBodyProps = PaletteProps & {
+  data: ScheduleData
+  optimizing: boolean
+  actions: ScheduleActions
+}
 
 const WORD_SPLIT = /[^a-z0-9']+/
 
@@ -156,7 +178,16 @@ export function CommandSearch({
           // Keep the caret after anything typed into the header field.
           input.setSelectionRange(input.value.length, input.value.length)
         }}
-        onCloseAutoFocus={focusReturn.restore}
+        onCloseAutoFocus={(event) => {
+          // An action that opened another surface (Review AI suggestions opens the suggestions
+          // panel) has already moved focus there. Only hand focus back if it was left nowhere.
+          const active = document.activeElement
+          if (active && active !== document.body) {
+            event.preventDefault()
+            return
+          }
+          focusReturn.restore(event)
+        }}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Search CareOps</DialogTitle>
@@ -165,6 +196,7 @@ export function CommandSearch({
           </DialogDescription>
         </DialogHeader>
         <PaletteCommand
+          open={open}
           inputRef={inputRef}
           query={query}
           onQueryChange={onQueryChange}
@@ -197,34 +229,39 @@ export function CommandSearch({
   )
 }
 
+/** Reads the store slices the palette shows and hands them to the body. */
+function PaletteCommand(props: PaletteProps) {
+  const data = useScheduleData()
+  const { optimizing } = useScheduleUi()
+  const actions = useScheduleActions()
+  return <PaletteBody {...props} data={data} optimizing={optimizing} actions={actions} />
+}
+
+/**
+ * While the dialog animates closed the body keeps its last frame, so whatever the chosen
+ * action changes (the optimizer's spinner, a filter, suggestion counts) plays out on the
+ * board rather than on a list that is fading away.
+ */
+function holdWhileClosing(prev: PaletteBodyProps, next: PaletteBodyProps) {
+  if (!next.open) return true
+  return (Object.keys(next) as (keyof PaletteBodyProps)[]).every((key) =>
+    Object.is(prev[key], next[key])
+  )
+}
+
 /**
  * The searchable body. It mounts with the dialog content, so the open cascade replays on
  * every open; once it settles, rows that reappear while filtering only take a quick fade.
  */
-function PaletteCommand({
+const PaletteBody = React.memo(function PaletteBody({
   inputRef,
   query,
   onQueryChange,
   onClose,
-}: {
-  inputRef: React.RefObject<HTMLInputElement | null>
-  query: string
-  onQueryChange: (query: string) => void
-  onClose: () => void
-}) {
-  const {
-    caregivers,
-    visits,
-    openShifts,
-    suggestions,
-    overtimeCaregivers,
-    optimizing,
-    caregiverById,
-    optimize,
-    setFilter,
-    setPreviewSuggestions,
-    setSuggestionsOpen,
-  } = useSchedule()
+  data: { caregivers, visits, openShifts, suggestions, overtimeCaregivers, caregiverById },
+  optimizing,
+  actions: { optimize, setFilter, setPreviewSuggestions, setSuggestionsOpen },
+}: PaletteBodyProps) {
   const [selected, setSelected] = React.useState("")
   const settled = useSettledAfter(OPEN_CASCADE_MS)
 
@@ -378,9 +415,7 @@ function PaletteCommand({
                 {...rowMotion()}
               >
                 {highlight(value)}
-                <span aria-hidden className="flex shrink-0">
-                  <PersonAvatar name={caregiver.name} src={caregiver.avatar} className="size-7" />
-                </span>
+                <PersonAvatar name={caregiver.name} src={caregiver.avatar} className="size-7" />
                 <span className="flex min-w-0 flex-1 items-baseline gap-2">
                   <span className="truncate">{caregiver.name}</span>
                   <span className="shrink-0 text-xs text-muted-foreground">{caregiver.role}</span>
@@ -465,4 +500,4 @@ function PaletteCommand({
       </CommandList>
     </Command>
   )
-}
+}, holdWhileClosing)

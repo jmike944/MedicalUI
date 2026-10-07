@@ -3,7 +3,8 @@
 import * as React from "react"
 import { animate, useInView, useReducedMotion } from "motion/react"
 
-const EASE_OUT = [0.22, 1, 0.36, 1] as const
+import { EASE_OUT } from "@/lib/motion"
+
 /** Live updates (a filled shift, an accepted suggestion) settle quickly so counters stay in step. */
 const UPDATE_DURATION = 0.5
 

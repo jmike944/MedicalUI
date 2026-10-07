@@ -21,8 +21,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-
-import { snappy, staggerDelay } from "./motion"
+import { usePointerAwareMenuFocus } from "@/hooks/use-pointer-aware-menu-focus"
+import { press, staggerDelay, twist } from "@/lib/motion"
 
 const actions = [
   {
@@ -54,11 +54,12 @@ const actions = [
 /** The "+" button. It spins a quarter turn on hover and settles into an "x" while open. */
 export function CreateMenu() {
   const [open, setOpen] = React.useState(false)
+  const { triggerRef, contentProps } = usePointerAwareMenuFocus<HTMLButtonElement>()
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <CreateTrigger open={open} />
-      <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+      <CreateTrigger ref={triggerRef} open={open} />
+      <DropdownMenuContent align="end" sideOffset={8} className="w-56" {...contentProps}>
         <DropdownMenuGroup>
           <DropdownMenuLabel>Create</DropdownMenuLabel>
           {actions.map((action, index) => (
@@ -84,14 +85,14 @@ export function CreateMenu() {
  * fires a synthetic pointerdown that opens the menu just before Radix's own Enter
  * handler toggles it shut again.
  */
-function CreateTrigger({ open }: { open: boolean }) {
+function CreateTrigger({ ref, open }: { ref: React.Ref<HTMLButtonElement>; open: boolean }) {
   return (
-    <DropdownMenuTrigger asChild>
+    <DropdownMenuTrigger ref={ref} asChild>
       <Button
         asChild
         variant="secondary"
-        size="icon"
-        className="size-10 rounded-full border-0 text-primary transition-[background-color,color,box-shadow,scale] duration-150 ease-out hover:bg-accent active:scale-90 md:size-12 aria-expanded:bg-accent aria-expanded:text-primary [&_svg:not([class*='size-'])]:size-6 md:[&_svg:not([class*='size-'])]:size-7"
+        size="icon-xl"
+        className="rounded-full border-0 text-primary transition-[background-color,color,box-shadow,scale] duration-150 ease-out hover:bg-accent active:scale-90 aria-expanded:bg-accent aria-expanded:text-primary md:[&_svg:not([class*='size-'])]:size-7"
       >
         <motion.button
           type="button"
@@ -100,12 +101,12 @@ function CreateTrigger({ open }: { open: boolean }) {
           animate={open ? "open" : "closed"}
           whileHover={open ? undefined : "hover"}
           variants={{ closed: { scale: 1 }, open: { scale: 1 }, hover: { scale: 1.06 } }}
-          transition={snappy}
+          transition={press}
         >
           <motion.span
             className="flex"
             variants={{ closed: { rotate: 0 }, open: { rotate: 45 }, hover: { rotate: 90 } }}
-            transition={{ type: "spring", stiffness: 420, damping: 18 }}
+            transition={twist}
           >
             <HugeiconsIcon icon={Add01Icon} strokeWidth={1.5} aria-hidden />
           </motion.span>

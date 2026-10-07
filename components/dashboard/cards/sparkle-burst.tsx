@@ -2,17 +2,18 @@
 
 import { motion } from "motion/react"
 
+import { EASE_OUT } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 const TONES = {
   default: ["bg-primary", "bg-in-progress", "bg-warning", "bg-copilot-highlight", "bg-primary"],
   // For bursts on the blue copilot card, where primary-coloured dots would disappear.
   inverse: [
-    "bg-primary-foreground",
+    "bg-copilot-foreground",
     "bg-in-progress",
-    "bg-primary-foreground",
+    "bg-copilot-foreground",
     "bg-warning",
-    "bg-primary-foreground",
+    "bg-copilot-foreground",
   ],
 } as const
 
@@ -47,11 +48,11 @@ export function SparkleBurst({
       <motion.span
         className={cn(
           "absolute inset-0 rounded-full ring-2 ring-primary/40",
-          tone === "inverse" && "ring-primary-foreground/60"
+          tone === "inverse" && "ring-copilot-foreground/60"
         )}
         initial={{ scale: 0.6, opacity: 0.9 }}
         animate={{ scale: 2.1, opacity: 0 }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
+        transition={{ duration: 0.9, ease: EASE_OUT, delay: 0.1 }}
       />
       {PARTICLES.map((p, i) => (
         <motion.span
@@ -64,7 +65,7 @@ export function SparkleBurst({
             scale: [0, 1.2, 0],
             opacity: [0, 1, 0],
           }}
-          transition={{ duration: 1, ease: [0.22, 1, 0.36, 1], delay: p.delay }}
+          transition={{ duration: 1, ease: EASE_OUT, delay: p.delay }}
         />
       ))}
     </span>

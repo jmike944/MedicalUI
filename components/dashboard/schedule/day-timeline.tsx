@@ -5,6 +5,7 @@ import { AnimatePresence, LayoutGroup, motion } from "motion/react"
 
 import { useScheduleData, useScheduleUi } from "@/components/dashboard/schedule-store"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { EASE_OUT } from "@/lib/motion"
 import { DAY_END, DAY_START, NOW } from "@/lib/schedule-data"
 import { formatHourLabel, hourToPercent, timelineHours } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
@@ -15,7 +16,7 @@ import { NowMarker } from "./now-marker"
 import { OptimizeSweep } from "./optimize-sweep"
 import { OpenShiftsStrip } from "./row-parts"
 import { SuggestionConnectors, useConnectorSpecs } from "./suggestion-connectors"
-import { EASE_OUT, NAME_COL_VARS, ROW_GRID, TRACK_OVERLAY } from "./timeline-layout"
+import { NAME_COL_VARS, ROW_GRID, TRACK_OVERLAY } from "./timeline-layout"
 import { OpenShiftsRow, TimelineRow, type Ghost } from "./timeline-row"
 
 /** Every hour boundary from 7 AM to 7 PM, including the closing edge. */

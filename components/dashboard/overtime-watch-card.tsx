@@ -11,12 +11,13 @@ import { SparkleBurst } from "@/components/dashboard/cards/sparkle-burst"
 import { useEntranceTiming } from "@/components/dashboard/cards/use-entrance-timing"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { Reveal } from "@/components/dashboard/reveal"
-import { isOvertimeRisk, useSchedule } from "@/components/dashboard/schedule-store"
+import { isOvertimeRisk, useScheduleData } from "@/components/dashboard/schedule-store"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { EASE_IN_EXIT, rise } from "@/lib/motion"
 import type { Caregiver } from "@/lib/schedule-data"
-import { formatHours } from "@/lib/schedule-time"
+import { formatDecimal, formatHours } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
 
 const CARD_DELAY = 0.5
@@ -31,7 +32,7 @@ const LINGER_MS = 1600
  * Those linger briefly so their bar animates down before the row leaves.
  */
 function useOvertimeRows() {
-  const { caregivers, overtimeCaregivers } = useSchedule()
+  const { caregivers, overtimeCaregivers } = useScheduleData()
   const atRiskKey = overtimeCaregivers.map((c) => c.id).join(",")
   const [previousKey, setPreviousKey] = React.useState(atRiskKey)
   const [lingering, setLingering] = React.useState<string[]>([])
@@ -71,7 +72,7 @@ export function OvertimeWatchCard() {
   const entrance = useEntranceTiming(CARD_DELAY + 2.2)
 
   return (
-    <Reveal delay={CARD_DELAY} className="h-full">
+    <Reveal delay={CARD_DELAY} className="h-full min-w-0">
       <Card role="region" aria-labelledby={titleId} className={glanceCardClassName}>
         <CardHeader>
           <CardHeading id={titleId} icon={Clock01Icon} delay={CARD_DELAY + 0.15}>
@@ -91,12 +92,7 @@ export function OvertimeWatchCard() {
                   animate={{
                     opacity: 1,
                     y: 0,
-                    transition: {
-                      type: "spring",
-                      stiffness: 360,
-                      damping: 28,
-                      delay: entrance.at(CARD_DELAY + 0.25 + index * 0.08),
-                    },
+                    transition: { ...rise, delay: entrance.at(CARD_DELAY + 0.25 + index * 0.08) },
                   }}
                   exit={{
                     opacity: 0,
@@ -104,7 +100,7 @@ export function OvertimeWatchCard() {
                     y: -6,
                     filter: "blur(4px)",
                     // Fade out ahead of the row below sliding up into its place.
-                    transition: { duration: 0.3, ease: [0.4, 0, 1, 1], opacity: { duration: 0.18 } },
+                    transition: { duration: 0.3, ease: EASE_IN_EXIT, opacity: { duration: 0.18 } },
                   }}
                 >
                   <OvertimeRow
@@ -204,22 +200,23 @@ function HoursBar({ caregiver, delay }: { caregiver: Caregiver; delay: number })
   const left = Math.max(0, weeklyLimit - weeklyHours)
   const atRisk = isOvertimeRisk(caregiver)
 
+  // Not a tab stop: a progressbar isn't interactive. The value text carries what the hover
+  // tooltip shows, so keyboard and screen reader users get it without focusing the bar.
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <div
           role="progressbar"
-          tabIndex={0}
           aria-label={`${name}’s weekly hours`}
           aria-valuemin={0}
           aria-valuemax={weeklyLimit}
           aria-valuenow={weeklyHours}
-          aria-valuetext={`${weeklyHours} of ${weeklyLimit} hours`}
-          className="relative h-2 w-full rounded-full outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-valuetext={`${formatDecimal(weeklyHours)} of ${weeklyLimit} hours, ${formatDecimal(left)} left before overtime`}
+          className="relative h-2 w-full rounded-full"
         >
           <span
             aria-hidden
-            className="absolute inset-0 rounded-full bg-hatched bg-[length:6px_6px]"
+            className="absolute inset-0 rounded-full bg-hatched [--hatch-size:6px]"
             style={{ backgroundColor: "transparent" }}
           />
           <motion.span

@@ -4,13 +4,13 @@ import { AnimatePresence, motion } from "motion/react"
 
 import { useScheduleUi } from "@/components/dashboard/schedule-store"
 import { Card, CardContent } from "@/components/ui/card"
+import { EASE_IN_EXIT, EASE_OUT } from "@/lib/motion"
 
 import { BoardProvider } from "./schedule/board-context"
 import { DayTimeline } from "./schedule/day-timeline"
 import { ScheduleLegend } from "./schedule/schedule-legend"
 import { ScheduleHeader } from "./schedule/schedule-toolbar"
 import { SuggestionBar } from "./schedule/suggestion-bar"
-import { EASE_IN_EXIT, EASE_OUT } from "./schedule/timeline-layout"
 import { WeekView } from "./schedule/week-view"
 
 const MotionCard = motion.create(Card)
@@ -24,7 +24,7 @@ export function ScheduleBoard() {
       <MotionCard
         role="region"
         aria-labelledby="schedule-title"
-        className="gap-0 rounded-[2rem] py-0 ring-0"
+        className="@container/card gap-0 rounded-[24px] py-0 ring-0"
         initial={{ opacity: 0, y: 14 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: EASE_OUT }}

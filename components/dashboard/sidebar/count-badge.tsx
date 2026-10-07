@@ -4,7 +4,7 @@ import * as React from "react"
 import { AnimatePresence, motion, useAnimate, useReducedMotion } from "motion/react"
 
 import { SidebarMenuBadge } from "@/components/ui/sidebar"
-import { bouncySpring } from "./motion"
+import { bouncy } from "@/lib/motion"
 
 /**
  * Solid count bubble at the end of a nav row. Springs in after its row lands,
@@ -43,7 +43,7 @@ export function CountBadge({ value, delay = 0 }: { value: number; delay?: number
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.4, opacity: 0, transition: { duration: 0.18 } }}
-        transition={{ ...bouncySpring, delay, opacity: { duration: 0.2, delay } }}
+        transition={{ ...bouncy, delay, opacity: { duration: 0.2, delay } }}
         className="flex"
       >
         <span

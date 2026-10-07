@@ -3,13 +3,25 @@
 import * as React from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight02Icon, SparklesIcon } from "@hugeicons/core-free-icons"
-import { AnimatePresence, motion, useAnimate, useReducedMotion, type Variants } from "motion/react"
+import {
+  AnimatePresence,
+  motion,
+  useAnimate,
+  useReducedMotion,
+  type Transition,
+  type Variants,
+} from "motion/react"
 
 import { describeSuggestions, plural } from "@/components/dashboard/cards/copilot-copy"
 import { RollingNumber } from "@/components/dashboard/cards/rolling-number"
 import { SparkleBurst } from "@/components/dashboard/cards/sparkle-burst"
+import { useEntranceTiming } from "@/components/dashboard/cards/use-entrance-timing"
 import { Reveal } from "@/components/dashboard/reveal"
-import { useSchedule } from "@/components/dashboard/schedule-store"
+import {
+  useScheduleActions,
+  useScheduleData,
+  useScheduleUi,
+} from "@/components/dashboard/schedule-store"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,6 +55,35 @@ const arrowVariants: Variants = {
   hover: { opacity: 1, x: 0 },
 }
 
+/*
+ * The ambient loops below animate one whole `transform` string, so Motion hands them to WAAPI and
+ * they run on the compositor (separate rotate/scale/x values would tick on the main thread). Each
+ * cycle's rest is a held keyframe rather than a repeatDelay, which would force the JS path, and
+ * every loop is bounded: it plays a few times, then the card sits still.
+ */
+
+/** Sparkle wiggle: a quick twist and pop in the first quarter of the cycle, then a hold. */
+const WIGGLE = {
+  transform: [
+    "rotate(0deg) scale(1)",
+    "rotate(-16deg) scale(1.28)",
+    "rotate(12deg) scale(0.94)",
+    "rotate(0deg) scale(1)",
+    "rotate(0deg) scale(1)",
+  ],
+}
+const WIGGLE_TRANSITION: Transition = {
+  duration: 4.5,
+  times: [0, 0.08, 0.16, 0.245, 1],
+  ease: ["easeInOut", "easeInOut", "easeInOut", "linear"],
+  // Three wiggles, then rest. The badge replays them whenever the card's state changes.
+  repeat: 2,
+}
+
+const SHEEN_FROM = "translateX(-130%) skewX(-18deg)"
+const SHEEN_TO = "translateX(330%) skewX(-18deg)"
+const SWEEP_EASE = [0.45, 0, 0.2, 1] as const
+
 /**
  * Counts how many times the queue has just been cleared (ready → caught up), so the card can
  * celebrate each time. Starting out caught up, or finishing an optimizer run, doesn't count.
@@ -58,18 +99,13 @@ function useClearedCount(state: CopilotState) {
 }
 
 export function AiCopilotCard() {
-  const {
-    suggestions,
-    openShifts,
-    overtimeCaregivers,
-    pendingSavings,
-    pendingFills,
-    optimizing,
-    optimize,
-    setPreviewSuggestions,
-    setSuggestionsOpen,
-  } = useSchedule()
+  const { suggestions, openShifts, overtimeCaregivers, pendingSavings, pendingFills } =
+    useScheduleData()
+  const { optimizing } = useScheduleUi()
+  const { optimize, setPreviewSuggestions, setSuggestionsOpen } = useScheduleActions()
   const titleId = React.useId()
+  // The first wiggle waits for the card's entrance; later ones (new state) follow the title swap.
+  const entrance = useEntranceTiming(1.5)
   const count = suggestions.length
   const state: CopilotState = optimizing ? "optimizing" : count > 0 ? "ready" : "clear"
   const cleared = useClearedCount(state)
@@ -89,30 +125,25 @@ export function AiCopilotCard() {
   }
 
   return (
-    <Reveal delay={0.3} className="h-full">
+    <Reveal delay={0.3} className="h-full min-w-0">
       <Card
         role="region"
         aria-labelledby={titleId}
-        className="relative h-full min-h-[277px] gap-0 rounded-[1.75rem] bg-copilot pb-7 text-primary-foreground ring-0 [--card-spacing:28px]"
+        className="relative h-full min-h-[277px] gap-0 rounded-[24px] bg-copilot pb-7 text-copilot-foreground ring-0 [--card-spacing:28px]"
       >
         <DecorativeOrb pulse={cleared} />
         <Sheen fast={state === "optimizing"} />
 
         <CardHeader className="relative gap-0">
           <span className="relative flex w-fit">
-            <Badge className="h-6 bg-background pr-3 pl-2.5 text-foreground">
+            <Badge variant="inverse" className="h-6 pr-3 pl-2.5">
               {/* Wiggle a wrapper rather than the SVG itself, so the transform stays on the GPU. */}
               <motion.span
+                key={state}
                 aria-hidden
                 className="flex"
-                animate={{ rotate: [0, -16, 12, 0], scale: [1, 1.28, 0.94, 1] }}
-                transition={{
-                  duration: 1.1,
-                  ease: "easeInOut",
-                  repeat: Infinity,
-                  repeatDelay: 3.4,
-                  delay: 1.2,
-                }}
+                animate={WIGGLE}
+                transition={{ ...WIGGLE_TRANSITION, delay: entrance.intro ? 1.2 : 0.3 }}
               >
                 <HugeiconsIcon icon={SparklesIcon} size={12} strokeWidth={2.8} />
               </motion.span>
@@ -144,7 +175,7 @@ export function AiCopilotCard() {
 
           <CardDescription
             aria-live="polite"
-            className="relative mt-[13px] max-w-[300px] text-[17px] leading-6 text-primary-foreground"
+            className="relative mt-[13px] max-w-[300px] text-[17px] leading-6 text-copilot-foreground"
           >
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
@@ -162,8 +193,9 @@ export function AiCopilotCard() {
         <CardFooter className="relative mt-auto">
           <Button
             asChild
+            variant="inverse"
             size="lg"
-            className="relative h-12 rounded-full bg-background px-6 text-[17px] text-foreground hover:bg-background focus-visible:ring-primary-foreground/60 has-data-[icon=inline-end]:pr-6 has-data-[icon=inline-start]:pl-5"
+            className="relative h-12 rounded-full px-6 text-[17px] focus-visible:ring-copilot-foreground/60 has-data-[icon=inline-end]:pr-6 has-data-[icon=inline-start]:pl-5"
           >
             <motion.button
               type="button"
@@ -205,8 +237,9 @@ export function AiCopilotCard() {
 }
 
 /**
- * Soft circle bleeding off the top-right corner; it drifts slowly, and swells once
- * each time `pulse` goes up (when the suggestion queue is cleared).
+ * Soft circle bleeding off the top-right corner. It drifts for two slow cycles after load and
+ * settles; hovering the card eases it a little further in. It swells once each time `pulse`
+ * goes up (when the suggestion queue is cleared).
  */
 function DecorativeOrb({ pulse }: { pulse: number }) {
   const [scope, animate] = useAnimate<HTMLDivElement>()
@@ -231,29 +264,35 @@ function DecorativeOrb({ pulse }: { pulse: number }) {
       transition={{ type: "spring", stiffness: 120, damping: 20, delay: 0.45 }}
     >
       <div ref={scope} className="size-full">
-        <div className="size-full animate-float rounded-full bg-copilot-highlight" />
+        {/*
+          The float animates `transform`; the hover drift uses the separate `translate` and `scale`
+          properties, so the two compose and neither snaps when the other starts or stops.
+        */}
+        <div className="size-full animate-float rounded-full bg-copilot-highlight transition-[translate,scale] duration-1000 ease-[cubic-bezier(0.22,1,0.36,1)] [animation-iteration-count:2] motion-safe:group-hover/card:-translate-x-2.5 motion-safe:group-hover/card:translate-y-2 motion-safe:group-hover/card:scale-[1.05]" />
       </div>
     </motion.div>
   )
 }
 
-/** Diagonal light sweep: once shortly after mount, then every ~7s. Loops quickly while optimizing. */
+/**
+ * Diagonal light sweep: shortly after mount, then twice more ~7s apart, then it rests off-card.
+ * While optimizing it loops quickly instead; when the run ends it remounts and sweeps again.
+ */
 function Sheen({ fast }: { fast: boolean }) {
   return (
     <motion.div
       key={fast ? "fast" : "idle"}
       aria-hidden
-      className="pointer-events-none absolute inset-y-[-20%] left-0 w-2/5 bg-linear-to-r from-transparent via-primary-foreground/15 to-transparent"
-      style={{ skewX: -18 }}
-      initial={{ x: "-130%" }}
-      animate={{ x: "330%" }}
-      transition={{
-        duration: fast ? 1 : 1.5,
-        ease: [0.45, 0, 0.2, 1],
-        delay: fast ? 0 : 1,
-        repeat: Infinity,
-        repeatDelay: fast ? 0.15 : 5.5,
-      }}
+      className="pointer-events-none absolute inset-y-[-20%] left-0 w-2/5 bg-linear-to-r from-transparent via-copilot-foreground/15 to-transparent"
+      initial={{ transform: SHEEN_FROM }}
+      animate={{ transform: [SHEEN_FROM, SHEEN_TO, SHEEN_TO] }}
+      transition={
+        fast
+          ? // 1s sweep + 0.15s hold per cycle; four cycles outlast the optimizer's 1.4s run.
+            { duration: 1.15, times: [0, 0.87, 1], ease: [SWEEP_EASE, "linear"], repeat: 3 }
+          : // 1.5s sweep + 5.5s hold per cycle, three cycles.
+            { duration: 7, times: [0, 0.215, 1], ease: [SWEEP_EASE, "linear"], delay: 1, repeat: 2 }
+      }
     />
   )
 }

@@ -9,9 +9,9 @@ import {
 } from "@/components/ui/dialog"
 import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item"
 import { Kbd, KbdGroup } from "@/components/ui/kbd"
+import { useRestoreFocus } from "@/hooks/use-restore-focus"
+import { staggerDelay } from "@/lib/motion"
 
-import { staggerDelay } from "./motion"
-import { useRestoreFocus } from "./use-restore-focus"
 import { useIsMac } from "./use-is-mac"
 
 /** Cheat sheet opened from the help button, the account menu, or "?". */

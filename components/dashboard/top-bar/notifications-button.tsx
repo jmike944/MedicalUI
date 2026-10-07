@@ -11,7 +11,7 @@ import {
   UserAdd01Icon,
 } from "@hugeicons/core-free-icons"
 
-import { useSchedule } from "@/components/dashboard/schedule-store"
+import { useScheduleActions, useScheduleData } from "@/components/dashboard/schedule-store"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -31,10 +31,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { Separator } from "@/components/ui/separator"
+import { press } from "@/lib/motion"
 import { formatRange, formatTime } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
-
-import { snappy } from "./motion"
 
 type Tone = "attention" | "warning" | "primary"
 
@@ -61,19 +60,13 @@ const listVariants = {
 
 const rowVariants = {
   hidden: { opacity: 0, y: 6, scale: 0.98 },
-  show: { opacity: 1, y: 0, scale: 1, transition: snappy },
+  show: { opacity: 1, y: 0, scale: 1, transition: press },
 }
 
 /** Builds the three live notices from the schedule, so they track accepted suggestions. */
 function useNotices(close: () => void): Notice[] {
-  const {
-    visits,
-    openShifts,
-    caregiverById,
-    setFilter,
-    setPreviewSuggestions,
-    setSuggestionsOpen,
-  } = useSchedule()
+  const { visits, openShifts, caregiverById } = useScheduleData()
+  const { setFilter, setPreviewSuggestions, setSuggestionsOpen } = useScheduleActions()
 
   const irene = visits.find((v) => v.patient === "Irene Foster")
   const ireneCaregiver = irene ? caregiverById(irene.caregiverId) : undefined
@@ -161,15 +154,15 @@ export function NotificationsButton() {
         <Button
           asChild
           variant="ghost"
-          size="icon"
-          className="relative size-10 rounded-full text-foreground md:size-12 [&_svg:not([class*='size-'])]:size-6"
+          size="icon-xl"
+          className="relative rounded-full text-foreground"
         >
           <motion.button
             type="button"
             aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
             whileHover="hover"
             whileTap={{ scale: 0.9 }}
-            transition={snappy}
+            transition={press}
           >
             <motion.span
               ref={bellScope}
@@ -191,7 +184,8 @@ export function NotificationsButton() {
                   exit={{ scale: 0, opacity: 0 }}
                   transition={{ type: "spring", stiffness: 520, damping: 22 }}
                 >
-                  <span className="absolute inset-0 animate-ping-slow rounded-full bg-destructive" />
+                  {/* A few pings to draw the eye after load, then the dot rests. */}
+                  <span className="absolute inset-0 animate-ping-slow rounded-full bg-destructive repeat-3 fill-mode-forwards" />
                 </motion.span>
               ) : null}
             </AnimatePresence>
@@ -215,7 +209,7 @@ export function NotificationsButton() {
                     initial={{ opacity: 0, y: -6, scale: 0.8 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 6, scale: 0.8 }}
-                    transition={snappy}
+                    transition={press}
                     className="flex"
                   >
                     <Badge variant="destructive">{unread} new</Badge>

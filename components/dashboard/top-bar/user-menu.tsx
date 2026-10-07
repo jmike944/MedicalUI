@@ -22,9 +22,9 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { usePointerAwareMenuFocus } from "@/hooks/use-pointer-aware-menu-focus"
+import { press, staggerDelay } from "@/lib/motion"
 import { CURRENT_USER } from "@/lib/schedule-data"
-
-import { snappy, staggerDelay } from "./motion"
 
 const itemMotion = "animate-in duration-300 fill-mode-backwards fade-in-0 slide-in-from-top-1"
 
@@ -33,10 +33,11 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
   // "Keyboard shortcuts" waits for the menu to hand focus back to the avatar, so the
   // dialog remembers (and later restores) the avatar rather than an unmounted menu item.
   const shortcutsPendingRef = React.useRef(false)
+  const { triggerRef, contentProps } = usePointerAwareMenuFocus<HTMLButtonElement>()
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger ref={triggerRef} asChild>
         <motion.button
           type="button"
           aria-label={`Account menu for ${CURRENT_USER.name}`}
@@ -44,7 +45,7 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
           // and immediately close it again (see CreateTrigger).
           className="group/avatar-trigger flex size-10 items-center justify-center rounded-full outline-none transition-[scale] duration-150 ease-out active:scale-[0.94] md:size-12 focus-visible:ring-[3px] focus-visible:ring-ring/50"
           whileHover={{ scale: 1.04 }}
-          transition={snappy}
+          transition={press}
         >
           <PersonAvatar
             name={CURRENT_USER.name}
@@ -57,18 +58,20 @@ export function UserMenu({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
         align="end"
         sideOffset={8}
         className="w-60"
-        onCloseAutoFocus={() => {
+        {...contentProps}
+        onCloseAutoFocus={(event) => {
+          // Back to the avatar, without the keyboard ring after a pointer pick.
+          contentProps.onCloseAutoFocus(event)
           if (!shortcutsPendingRef.current) return
           shortcutsPendingRef.current = false
-          // Radix focuses the trigger right after this handler returns.
+          // The avatar has focus by the next frame (Radix focuses it after this handler returns
+          // when the menu was used from the keyboard).
           requestAnimationFrame(() => onOpenShortcuts())
         }}
       >
         <DropdownMenuGroup>
           <DropdownMenuLabel className="flex items-center gap-3 text-foreground">
-            <span aria-hidden className="flex shrink-0">
-              <PersonAvatar name={CURRENT_USER.name} src={CURRENT_USER.avatar} size="lg" />
-            </span>
+            <PersonAvatar name={CURRENT_USER.name} src={CURRENT_USER.avatar} size="lg" />
             <span className="flex min-w-0 flex-col">
               <span className="truncate text-sm font-medium">{CURRENT_USER.name}</span>
               <span className="truncate text-xs text-muted-foreground">{CURRENT_USER.role}</span>

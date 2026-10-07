@@ -55,7 +55,8 @@
   --color-warning-foreground: var(--warning-foreground);
   --color-copilot: var(--copilot);
   --color-copilot-highlight: var(--copilot-highlight);
-  --animate-hatch-march: hatch-march 2.4s linear infinite;
+  --color-copilot-foreground: var(--copilot-foreground);
+  /* `animate-hatch-march` is a custom utility below: it drives the stripe layer, not the element. */
   --animate-shimmer: shimmer 2.8s ease-in-out infinite;
   /* Ambient version for always-on surfaces (live visits): one sweep, then a long rest. */
   --animate-shimmer-ambient: shimmer-ambient 9s ease-in-out infinite;
@@ -124,6 +125,8 @@
   --warning-foreground: #7d6830;
   --copilot: #4269f5;
   --copilot-highlight: #5b80f7;
+  /* Text and icons on the copilot blue. White in both themes (primary-foreground turns dark in .dark). */
+  --copilot-foreground: #ffffff;
 }
 
 .dark {
@@ -175,6 +178,7 @@
   --warning-foreground: #f6c27a;
   --copilot: #3a5ee6;
   --copilot-highlight: #5577f2;
+  --copilot-foreground: #ffffff;
 }
 
 @layer base {
@@ -195,24 +199,49 @@
   Each tile draws its centre stripe plus the two corner slivers, so stripes run unbroken across
   tile seams instead of looking dashed. Set --hatch-size (e.g. `[--hatch-size:6px]`) for a denser
   pattern; `animate-hatch-march` reads the same variable, so the march stays seamless.
+
+  The stripes live on a ::before that starts one tile to the left of the box, so the march can
+  slide it with `transform` alone (compositor only, no repaint per frame) and loop after one tile.
+  `contain: paint` clips that layer to the rounded box and holds it (containing block, stacking
+  context) without changing the element's position, overflow or flex sizing; z-index -1 keeps the
+  stripes above the panel colour and below the content. Size the stripes with --hatch-size, not
+  bg-size utilities, which no longer reach the stripe layer.
 */
 @utility bg-hatched {
   --hatch-stripe: 0.7px;
   background-color: var(--color-panel);
-  background-image: linear-gradient(
-    135deg,
-    var(--color-hatch) 0 var(--hatch-stripe),
-    transparent var(--hatch-stripe) calc(50% - var(--hatch-stripe)),
-    var(--color-hatch) calc(50% - var(--hatch-stripe)) calc(50% + var(--hatch-stripe)),
-    transparent calc(50% + var(--hatch-stripe)) calc(100% - var(--hatch-stripe)),
-    var(--color-hatch) calc(100% - var(--hatch-stripe))
-  );
-  background-size: var(--hatch-size, 8px) var(--hatch-size, 8px);
+  contain: paint;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: calc(-1 * var(--hatch-size, 8px));
+    right: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image: linear-gradient(
+      135deg,
+      var(--color-hatch) 0 var(--hatch-stripe),
+      transparent var(--hatch-stripe) calc(50% - var(--hatch-stripe)),
+      var(--color-hatch) calc(50% - var(--hatch-stripe)) calc(50% + var(--hatch-stripe)),
+      transparent calc(50% + var(--hatch-stripe)) calc(100% - var(--hatch-stripe)),
+      var(--color-hatch) calc(100% - var(--hatch-stripe))
+    );
+    background-size: var(--hatch-size, 8px) var(--hatch-size, 8px);
+    animation: var(--hatch-march, none);
+  }
+}
+
+/* Starts the stripe march on a `bg-hatched` element. Works with variants (`hover:`, `group-hover/item:`). */
+@utility animate-hatch-march {
+  --hatch-march: hatch-march 2.4s linear infinite;
 }
 
 @keyframes hatch-march {
   to {
-    background-position: var(--hatch-size, 8px) 0;
+    transform: translateX(var(--hatch-size, 8px));
   }
 }
 

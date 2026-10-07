@@ -47,21 +47,12 @@ import {
   type OpenShift,
   type Visit,
 } from "@/lib/schedule-data"
+import { EASE_OUT, bouncier, glide, pop } from "@/lib/motion"
 import { formatHours, formatRange, formatTime } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
 
 import { useIntro, useSpotlit } from "./board-context"
-import {
-  BOUNCY,
-  CLIP_HIDDEN,
-  CLIP_SHOWN,
-  EASE_OUT,
-  GLIDE,
-  HATCH_BASE,
-  POP,
-  blockPosition,
-  ghostDelay,
-} from "./timeline-layout"
+import { CLIP_HIDDEN, CLIP_SHOWN, blockPosition, ghostDelay } from "./timeline-layout"
 
 /**
  * Visits that started life as an open shift keep its id, so they can shed their hatching on arrival
@@ -162,7 +153,7 @@ function VisitDetails({ visit, caregiver }: { visit: Visit; caregiver: Caregiver
       <motion.dl variants={detailItem} className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
           <dt className="flex text-muted-foreground">
-            <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} className="size-4" />
+            <HugeiconsIcon icon={Clock01Icon} strokeWidth={1.8} aria-hidden className="size-4" />
             <span className="sr-only">Time</span>
           </dt>
           <dd>
@@ -172,7 +163,7 @@ function VisitDetails({ visit, caregiver }: { visit: Visit; caregiver: Caregiver
         </div>
         <div className="flex items-center gap-2">
           <dt className="flex text-muted-foreground">
-            <HugeiconsIcon icon={Location01Icon} strokeWidth={1.8} className="size-4" />
+            <HugeiconsIcon icon={Location01Icon} strokeWidth={1.8} aria-hidden className="size-4" />
             <span className="sr-only">Address</span>
           </dt>
           <dd>{visit.address}</dd>
@@ -189,7 +180,12 @@ function VisitDetails({ visit, caregiver }: { visit: Visit; caregiver: Caregiver
           variants={detailItem}
           className="flex items-start gap-2 rounded-xl bg-attention px-3 py-2.5 text-attention-foreground"
         >
-          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="mt-px size-4 shrink-0" />
+          <HugeiconsIcon
+            icon={Alert02Icon}
+            strokeWidth={1.8}
+            aria-hidden
+            className="mt-px size-4 shrink-0"
+          />
           {visit.alert}
         </motion.p>
       ) : null}
@@ -243,7 +239,7 @@ export const VisitBlock = React.memo(function VisitBlock({
       style={blockPosition(visit.start, visit.end)}
       animate={{ opacity: blockOpacity(spotlit, pendingMove) }}
       exit={{ opacity: 0 }}
-      transition={{ layout: GLIDE, opacity: { duration: 0.25 } }}
+      transition={{ layout: glide, opacity: { duration: 0.25 } }}
     >
       <HoverCard open={open} onOpenChange={setOpen} openDelay={150} closeDelay={80}>
         <HoverCardTrigger asChild>
@@ -278,10 +274,13 @@ export const VisitBlock = React.memo(function VisitBlock({
             whileTap={{ scale: 0.98 }}
           >
             {visit.status === "in-progress" ? (
-              // A live sweep across visits in progress: two passes after load, then it rests.
+              // Ambient life on visits in progress: one slow sweep every 9s, then a long rest. Delays
+              // keyed to the start time stagger the blocks into a soft wave instead of a unison
+              // flash; the fill keeps the sheen parked off the block before its turn. Hidden under
+              // reduced motion, where the sweep would end parked on the block.
               <span
                 aria-hidden
-                className="pointer-events-none absolute inset-y-0 left-0 w-1/2 animate-shimmer [animation-fill-mode:both] [animation-iteration-count:2]"
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/2 animate-shimmer-ambient [animation-fill-mode:both] motion-reduce:hidden"
                 style={{ animationDelay: `${0.8 + (visit.start % 3) * 0.6}s` }}
               >
                 <span className="block size-full -skew-x-12 bg-linear-to-r from-transparent via-card/60 to-transparent" />
@@ -290,8 +289,7 @@ export const VisitBlock = React.memo(function VisitBlock({
             {highlighted && shortLabel ? (
               <motion.span
                 aria-hidden
-                className="pointer-events-none absolute inset-0 animate-hatch-march bg-hatched"
-                style={HATCH_BASE}
+                className="pointer-events-none absolute inset-0 animate-hatch-march bg-hatched [--hatch-size:9px]"
                 initial={{ opacity: 1 }}
                 animate={{ opacity: 0 }}
                 transition={{ delay: 0.35, duration: 0.7, ease: "easeOut" }}
@@ -318,12 +316,18 @@ export function OpenShiftBlock({
   shift,
   delay,
   pendingMove = false,
+  onAssign,
   ref,
 }: {
   shift: OpenShift
   delay: number
   /** Source of a previewed AI fill: drawn dimmed and dashed, like a pending move. */
   pendingMove?: boolean
+  /**
+   * Called as a caregiver is picked, before the shift leaves the row. `fromKeyboard` tells a key
+   * press from a click, so whoever moves focus next can match the focus ring to it.
+   */
+  onAssign?: (shift: OpenShift, fromKeyboard: boolean) => void
   ref?: React.Ref<HTMLDivElement>
 }) {
   const { availableCaregiversFor } = useScheduleData()
@@ -331,10 +335,14 @@ export function OpenShiftBlock({
   const spotlit = useSpotlit("open-shift")
   const [open, setOpen] = React.useState(false)
   const reveal = useReveal(delay)
+  const titleId = React.useId()
+  const descriptionId = React.useId()
   const candidates = availableCaregiversFor(shift).slice(0, 3)
 
-  const assign = (caregiverId: string) => {
-    // Let the popover close before the block glides into the caregiver's row.
+  const assign = (caregiverId: string, fromKeyboard: boolean) => {
+    onAssign?.(shift, fromKeyboard)
+    // Let the popover close before the block glides into the caregiver's row. The filled visit
+    // takes focus when it lands (useFocusOnArrival); the row catches it if the lane is hidden.
     setOpen(false)
     window.setTimeout(() => fillOpenShift(shift.id, caregiverId), 140)
   }
@@ -342,15 +350,16 @@ export function OpenShiftBlock({
   return (
     // No `layout`: the block is absolutely placed and never reflows. The hand-off to the filled
     // visit runs through the shared layoutId, and the constant dependency skips re-measuring it.
+    // It sits 10px into the 44px lane, a touch below centre, as in the design.
     <motion.div
       ref={ref}
       layoutId={shift.id}
       layoutDependency={shift.id}
-      className="absolute inset-y-0 my-auto h-8"
+      className="absolute top-2.5 h-8"
       style={blockPosition(shift.start, shift.end)}
       animate={{ opacity: blockOpacity(spotlit, pendingMove) }}
       exit={{ opacity: 0 }}
-      transition={{ layout: GLIDE, opacity: { duration: 0.25 } }}
+      transition={{ layout: glide, opacity: { duration: 0.25 } }}
     >
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -358,14 +367,14 @@ export function OpenShiftBlock({
             type="button"
             data-visit-id={shift.id}
             aria-label={`Open shift for ${shift.patient}, ${formatRange(shift.start, shift.end)}, needs ${shift.requirement}. Assign a caregiver`}
-            // The stripes march only while the shift is hovered, focused or being assigned.
+            // The stripes march only while the shift is hovered, focused or being assigned. The
+            // design hatches open shifts on a 9px tile, a little looser than the default 8px.
             className={cn(
               blockBase,
-              "hover:animate-hatch-march focus-visible:animate-hatch-march data-[state=open]:animate-hatch-march",
+              "[--hatch-size:9px] hover:animate-hatch-march focus-visible:animate-hatch-march data-[state=open]:animate-hatch-march",
               openShiftBlockStyle,
               pendingMove && pendingSource
             )}
-            style={HATCH_BASE}
             initial={reveal.initial}
             animate={reveal.animate}
             transition={{ clipPath: reveal.transition }}
@@ -375,10 +384,19 @@ export function OpenShiftBlock({
             <span className="relative truncate">{shift.shortLabel}</span>
           </motion.button>
         </PopoverTrigger>
-        <PopoverContent side="bottom" align="end" className="w-80">
+        <PopoverContent
+          side="bottom"
+          align="end"
+          aria-labelledby={titleId}
+          aria-describedby={descriptionId}
+          className="w-80"
+        >
           <PopoverHeader>
-            <PopoverTitle>{shift.patient}</PopoverTitle>
-            <PopoverDescription>
+            <PopoverTitle id={titleId}>
+              <span className="sr-only">Open shift for </span>
+              {shift.patient}
+            </PopoverTitle>
+            <PopoverDescription id={descriptionId}>
               {formatRange(shift.start, shift.end)} · {shift.service} · Needs {shift.requirement}
             </PopoverDescription>
           </PopoverHeader>
@@ -403,8 +421,18 @@ export function OpenShiftBlock({
                       </ItemDescription>
                     </ItemContent>
                     <ItemActions>
-                      <Button size="sm" onClick={() => assign(caregiver.id)}>
-                        <HugeiconsIcon icon={UserAdd01Icon} strokeWidth={1.8} data-icon="inline-start" />
+                      <Button
+                        size="sm"
+                        aria-label={`Assign ${caregiver.name}`}
+                        // A click with no pointer behind it (detail 0) came from Enter or Space.
+                        onClick={(event) => assign(caregiver.id, event.detail === 0)}
+                      >
+                        <HugeiconsIcon
+                          icon={UserAdd01Icon}
+                          strokeWidth={1.8}
+                          aria-hidden
+                          data-icon="inline-start"
+                        />
                         Assign
                       </Button>
                     </ItemActions>
@@ -456,7 +484,7 @@ export function SuggestionGhost({
       transition={{
         opacity: { delay, duration: 0.3 },
         filter: { delay, duration: 0.35 },
-        scale: { ...POP, delay },
+        scale: { ...pop, delay },
       }}
     >
       {/* Sparkle badge on the corner, so short ghosts keep their full label. At the end of the
@@ -469,7 +497,7 @@ export function SuggestionGhost({
         )}
         initial={{ scale: 0, rotate: -45 }}
         animate={{ scale: 1, rotate: 0 }}
-        transition={{ ...BOUNCY, delay: delay + 0.2 }}
+        transition={{ ...bouncier, delay: delay + 0.2 }}
       >
         <HugeiconsIcon icon={SparklesIcon} strokeWidth={2.2} className="size-2.5" />
       </motion.span>

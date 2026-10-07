@@ -6,8 +6,7 @@ import { HelpCircleIcon } from "@hugeicons/core-free-icons"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-
-import { snappy } from "./motion"
+import { press } from "@/lib/motion"
 
 /** Opens the keyboard shortcuts sheet; the "?" tilts like it's thinking on hover. */
 export function HelpButton({ onOpenShortcuts }: { onOpenShortcuts: () => void }) {
@@ -17,8 +16,8 @@ export function HelpButton({ onOpenShortcuts }: { onOpenShortcuts: () => void })
         <Button
           asChild
           variant="ghost"
-          size="icon"
-          className="size-10 rounded-full text-foreground md:size-12 [&_svg:not([class*='size-'])]:size-6"
+          size="icon-xl"
+          className="rounded-full text-foreground"
         >
           <motion.button
             type="button"
@@ -27,7 +26,7 @@ export function HelpButton({ onOpenShortcuts }: { onOpenShortcuts: () => void })
             onClick={onOpenShortcuts}
             whileHover="hover"
             whileTap="tap"
-            transition={snappy}
+            transition={press}
             variants={{ tap: { scale: 0.9 } }}
           >
             <motion.span

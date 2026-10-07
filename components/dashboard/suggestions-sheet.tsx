@@ -15,11 +15,14 @@ import { AnimatePresence, motion, useIsPresent, useReducedMotion, type Variants 
 
 import { COPILOT_CTA_SELECTOR } from "@/components/dashboard/ai-copilot-card"
 import { describeSuggestions } from "@/components/dashboard/cards/copilot-copy"
-import { HatchedCircle } from "@/components/dashboard/cards/hatched-circle"
 import { SparkleBurst } from "@/components/dashboard/cards/sparkle-burst"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
-import { useSchedule } from "@/components/dashboard/schedule-store"
-import { useRestoreFocus } from "@/components/dashboard/top-bar/use-restore-focus"
+import {
+  useScheduleActions,
+  useScheduleData,
+  useScheduleUi,
+} from "@/components/dashboard/schedule-store"
+import { HatchedCircle } from "@/components/dashboard/shared/hatched-circle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
@@ -45,6 +48,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { Switch } from "@/components/ui/switch"
+import { useRestoreFocus } from "@/hooks/use-restore-focus"
+import { EASE_IN_EXIT, EASE_OUT } from "@/lib/motion"
 import type { Suggestion } from "@/lib/schedule-data"
 import { formatHours, formatRange } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
@@ -74,14 +79,14 @@ const cardVariants: Variants = {
           opacity: 0,
           x: -20,
           scale: 0.97,
-          transition: { duration: 0.2, ease: [0.4, 0, 1, 1], opacity: { duration: 0.15 } },
+          transition: { duration: 0.2, ease: EASE_IN_EXIT, opacity: { duration: 0.15 } },
         }
       : {
           opacity: 0,
           scale: 0.92,
           y: -10,
           filter: "blur(4px)",
-          transition: { duration: 0.3, ease: [0.4, 0, 1, 1] },
+          transition: { duration: 0.3, ease: EASE_IN_EXIT },
         },
 }
 
@@ -97,17 +102,10 @@ function focusable(root: HTMLElement | null, selector: string) {
  * must stay visible. Whatever opened it gets focus back when it closes.
  */
 export function SuggestionsSheet() {
-  const {
-    suggestions,
-    suggestionsOpen,
-    previewSuggestions,
-    pendingSavings,
-    pendingFills,
-    setSuggestionsOpen,
-    setPreviewSuggestions,
-    acceptSuggestion,
-    dismissSuggestion,
-  } = useSchedule()
+  const { suggestions, pendingSavings, pendingFills } = useScheduleData()
+  const { suggestionsOpen, previewSuggestions } = useScheduleUi()
+  const { setSuggestionsOpen, setPreviewSuggestions, acceptSuggestion, dismissSuggestion } =
+    useScheduleActions()
   const reduceMotion = useReducedMotion()
   const focusReturn = useRestoreFocus()
   const [accepting, setAccepting] = React.useState<string[]>([])
@@ -218,7 +216,7 @@ export function SuggestionsSheet() {
         <SheetHeader className="gap-3 pb-5">
           <motion.span
             aria-hidden
-            className="flex size-11 items-center justify-center rounded-full bg-copilot text-primary-foreground"
+            className="flex size-11 items-center justify-center rounded-full bg-copilot text-copilot-foreground"
             initial={{ scale: 0.5, rotate: -40, opacity: 0 }}
             animate={{ scale: 1, rotate: 0, opacity: 1 }}
             transition={{ type: "spring", stiffness: 380, damping: 16, delay: 0.1 }}
@@ -423,7 +421,7 @@ function SuggestionCard({
 
 /** Who the work moves from and to, with the visit time. */
 function SuggestionFlow({ suggestion }: { suggestion: Suggestion }) {
-  const { caregiverById, visits, openShifts } = useSchedule()
+  const { caregiverById, visits, openShifts } = useScheduleData()
   const to = caregiverById(suggestion.toCaregiverId)
 
   let from: React.ReactNode
@@ -442,7 +440,8 @@ function SuggestionFlow({ suggestion }: { suggestion: Suggestion }) {
     time = shift ? formatRange(shift.start, shift.end) : null
     from = (
       <FlowPerson label={shift ? shift.patient : "Open shift"}>
-        <HatchedCircle />
+        {/* Same 6px hatch as the open shifts card; marches while the suggestion card is hovered. */}
+        <HatchedCircle march="hover" className="[--hatch-size:6px]" />
       </FlowPerson>
     )
   }
@@ -455,7 +454,7 @@ function SuggestionFlow({ suggestion }: { suggestion: Suggestion }) {
           className="h-px w-full origin-left bg-primary/30"
           initial={{ scaleX: 0 }}
           animate={{ scaleX: 1 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1], delay: 0.35 }}
+          transition={{ duration: 0.5, ease: EASE_OUT, delay: 0.35 }}
         />
         <span className="absolute flex size-7 items-center justify-center rounded-full bg-card text-primary shadow-xs ring-1 ring-border transition-transform duration-300 group-hover/suggestion:translate-x-1.5">
           <HugeiconsIcon icon={ArrowRight02Icon} strokeWidth={2} className="size-4" />

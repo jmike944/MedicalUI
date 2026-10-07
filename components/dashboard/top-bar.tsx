@@ -1,18 +1,30 @@
 "use client"
 
 import * as React from "react"
-import { motion } from "motion/react"
+import { motion, type Variants } from "motion/react"
 
 import { CommandSearch } from "@/components/dashboard/command-search"
 import { CreateMenu } from "@/components/dashboard/top-bar/create-menu"
 import { HelpButton } from "@/components/dashboard/top-bar/help-button"
-import { entranceContainer, entranceItem } from "@/components/dashboard/top-bar/motion"
 import { NotificationsButton } from "@/components/dashboard/top-bar/notifications-button"
 import { OrgIdentity } from "@/components/dashboard/top-bar/org-identity"
 import { SearchField, SearchIconButton } from "@/components/dashboard/top-bar/search-field"
 import { ShortcutsDialog } from "@/components/dashboard/top-bar/shortcuts-dialog"
 import { UserMenu } from "@/components/dashboard/top-bar/user-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { drop } from "@/lib/motion"
+
+/** Parent of the entrance: org block, search, then each action button, 40ms apart. */
+const entranceContainer: Variants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.04, delayChildren: 0.05 } },
+}
+
+/** Each top bar slot drops in from 8px above. */
+const entranceItem: Variants = {
+  hidden: { opacity: 0, y: -8 },
+  show: { opacity: 1, y: 0, transition: drop },
+}
 
 function isTypingTarget(target: EventTarget | null) {
   return (

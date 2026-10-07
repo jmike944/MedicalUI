@@ -2,12 +2,13 @@
 
 import { motion, useReducedMotion } from "motion/react"
 
+import { EASE_OUT, bouncier } from "@/lib/motion"
 import { NOW } from "@/lib/schedule-data"
 import { formatClock, hourToPercent } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
 
 import { useIntroTiming } from "./board-context"
-import { BOUNCY, EASE_OUT, TRACK_OVERLAY } from "./timeline-layout"
+import { TRACK_OVERLAY } from "./timeline-layout"
 
 /*
  * The halo's grow-and-fade, with its rest built into the keyframes instead of `repeatDelay`, and
@@ -46,7 +47,7 @@ export function NowMarker() {
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{
-              scale: { ...BOUNCY, delay: pillDelay },
+              scale: { ...bouncier, delay: pillDelay },
               opacity: { delay: pillDelay, duration: 0.15 },
             }}
           >

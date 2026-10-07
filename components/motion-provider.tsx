@@ -2,6 +2,8 @@
 
 import { MotionConfig, useReducedMotion } from "motion/react"
 
+import { settle } from "@/lib/motion"
+
 /**
  * Shared motion defaults. With the OS "reduce motion" setting on, every motion animation (entrance
  * fades, blurs and their delays included, not just transforms) completes instantly, so content is
@@ -13,7 +15,7 @@ export function MotionProvider({ children }: { children: React.ReactNode }) {
     <MotionConfig
       reducedMotion="user"
       skipAnimations={reduceMotion}
-      transition={{ type: "spring", stiffness: 380, damping: 32, mass: 0.8 }}
+      transition={settle}
     >
       {children}
     </MotionConfig>

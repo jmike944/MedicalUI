@@ -14,8 +14,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-
-import { EASE_OUT } from "./timeline-layout"
+import { EASE_OUT } from "@/lib/motion"
 
 /** Shown when the caregiver filter leaves no rows, e.g. once every overtime risk is resolved. */
 export function CaregiversEmpty({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
@@ -33,7 +32,7 @@ export function CaregiversEmpty({ ref }: { ref?: React.Ref<HTMLDivElement> }) {
       <Empty className="gap-3 p-6">
         <EmptyHeader>
           <EmptyMedia variant="icon">
-            <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={1.8} />
+            <HugeiconsIcon icon={UserMultipleIcon} strokeWidth={1.8} aria-hidden />
           </EmptyMedia>
           <EmptyTitle className="text-base">
             {filter === "overtime" ? "No overtime risks" : "No caregivers on shift"}

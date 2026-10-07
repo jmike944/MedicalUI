@@ -2,12 +2,12 @@
 
 import { Calendar03Icon } from "@hugeicons/core-free-icons"
 
-import { useSchedule } from "@/components/dashboard/schedule-store"
+import { useScheduleData } from "@/components/dashboard/schedule-store"
 import { NavItem } from "./nav-item"
 
 /** "Schedule" entry whose badge counts open shifts plus visits that need attention, live. */
 export function ScheduleNavItem({ step }: { step: number }) {
-  const { openShifts, visits } = useSchedule()
+  const { openShifts, visits } = useScheduleData()
   const needsAttention =
     openShifts.length + visits.filter((visit) => visit.status === "attention").length
 

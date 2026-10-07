@@ -11,6 +11,7 @@ import {
 import { openShiftBlockStyle, visitStatusStyles } from "@/components/dashboard/visit-status"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { EASE_OUT, pop } from "@/lib/motion"
 import type { Caregiver, Visit } from "@/lib/schedule-data"
 import { formatHours } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
@@ -18,7 +19,7 @@ import { cn } from "@/lib/utils"
 import { IntroProvider, useIntroTiming, useSpotlit, type Spotlight } from "./board-context"
 import { CaregiversEmpty } from "./caregivers-empty"
 import { CaregiverLabel, OpenShiftsLabel, OpenShiftsStrip } from "./row-parts"
-import { EASE_OUT, HATCH_BASE, NAME_COL_VARS, POP, WEEK_GRID, rowPresence } from "./timeline-layout"
+import { NAME_COL_VARS, WEEK_GRID, rowPresence } from "./timeline-layout"
 
 type WeekDay = { short: string; date: string; full: string; weekend?: boolean }
 
@@ -132,7 +133,7 @@ function DayCell({
           )}
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ ...POP, delay }}
+          transition={{ ...pop, delay }}
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.97 }}
         >
@@ -146,7 +147,7 @@ function DayCell({
             className={pill}
             initial={{ opacity: 0, scale: 0.85 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ ...POP, delay }}
+            transition={{ ...pop, delay }}
           >
             {content}
           </motion.div>
@@ -258,13 +259,12 @@ function WeekGrid() {
                   {count > 0 ? (
                     <motion.span
                       className={cn(
-                        "mx-0.5 flex h-8 w-full items-center justify-center rounded-full text-[13px]",
+                        "mx-0.5 flex h-8 w-full items-center justify-center rounded-full text-[13px] [--hatch-size:9px]",
                         openShiftBlockStyle
                       )}
-                      style={HATCH_BASE}
                       initial={{ opacity: 0, scale: 0.85 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      transition={{ ...POP, delay: at(0.1 + index * 0.03) }}
+                      transition={{ ...pop, delay: at(0.1 + index * 0.03) }}
                     >
                       {count} open
                       <span className="sr-only">

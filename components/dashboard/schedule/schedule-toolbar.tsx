@@ -28,10 +28,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { usePointerAwareMenuFocus } from "@/hooks/use-pointer-aware-menu-focus"
+import { EASE_OUT, slide, snappier } from "@/lib/motion"
 import { AGENCY, openShifts as initialOpenShifts } from "@/lib/schedule-data"
 import { cn } from "@/lib/utils"
-
-import { EASE_OUT, SLIDE, SNAPPY } from "./timeline-layout"
 
 const VIEWS: { value: ScheduleView; label: string }[] = [
   { value: "day", label: "Day" },
@@ -49,7 +49,7 @@ function ViewToggle() {
   const { setView } = useScheduleActions()
 
   return (
-    <motion.div layout="position" transition={SLIDE}>
+    <motion.div layout="position" transition={slide}>
       <ToggleGroup
         type="single"
         value={view}
@@ -74,7 +74,7 @@ function ViewToggle() {
                 aria-hidden
                 className="absolute inset-0 rounded-full bg-card shadow-sm"
                 style={{ borderRadius: 999 }}
-                transition={SNAPPY}
+                transition={snappier}
               />
             ) : null}
             <span className="relative">{option.label}</span>
@@ -83,34 +83,6 @@ function ViewToggle() {
       </ToggleGroup>
     </motion.div>
   )
-}
-
-/**
- * Radix hands focus back to a menu's trigger when it closes. After a pointer pick that would leave
- * the keyboard focus ring on the trigger until the next click, so keep the focus but skip the ring;
- * menus closed from the keyboard still show it.
- */
-function usePointerAwareMenuFocus<T extends HTMLElement>() {
-  const triggerRef = React.useRef<T>(null)
-  const viaPointer = React.useRef(false)
-  const contentProps = {
-    onPointerDown: () => {
-      viaPointer.current = true
-    },
-    onPointerDownOutside: () => {
-      viaPointer.current = true
-    },
-    onKeyDown: () => {
-      viaPointer.current = false
-    },
-    onCloseAutoFocus: (event: Event) => {
-      if (!viaPointer.current) return
-      viaPointer.current = false
-      event.preventDefault()
-      triggerRef.current?.focus({ preventScroll: true, focusVisible: false })
-    },
-  }
-  return { triggerRef, contentProps }
 }
 
 function CaregiverFilterMenu() {
@@ -126,7 +98,7 @@ function CaregiverFilterMenu() {
   }
 
   return (
-    <motion.div layout="position" transition={SLIDE}>
+    <motion.div layout="position" transition={slide}>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -149,6 +121,7 @@ function CaregiverFilterMenu() {
             <HugeiconsIcon
               icon={ArrowDown01Icon}
               strokeWidth={2}
+              aria-hidden
               data-icon="inline-end"
               className="transition-transform duration-200 group-data-[state=open]/button:rotate-180"
             />
@@ -198,13 +171,14 @@ function OptimizeButton() {
           onClick={optimize}
           aria-disabled={optimizing}
           style={{ borderRadius: 17 }}
-          transition={{ layout: SLIDE }}
+          transition={{ layout: slide }}
           whileTap={{ scale: 0.97 }}
         >
-          <motion.span layout="position" className="flex" transition={{ layout: SLIDE }}>
+          <motion.span layout="position" className="flex" transition={{ layout: slide }}>
             <HugeiconsIcon
               icon={SparklesIcon}
               strokeWidth={1.8}
+              aria-hidden
               data-icon="inline-start"
               className={cn(optimizing && "animate-spin")}
             />
@@ -216,7 +190,7 @@ function OptimizeButton() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.22, ease: EASE_OUT, layout: SLIDE }}
+              transition={{ duration: 0.22, ease: EASE_OUT, layout: slide }}
             >
               {optimizing ? "Optimizing…" : "Optimize"}
             </motion.span>
@@ -231,7 +205,7 @@ function OptimizeButton() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
               >
-                <span className="absolute inset-y-0 left-0 w-1/2 animate-shimmer [animation-duration:1.4s]">
+                <span className="absolute inset-y-0 left-0 w-1/2 animate-shimmer [animation-duration:1.4s] motion-reduce:hidden">
                   <span className="block size-full -skew-x-12 bg-linear-to-r from-transparent via-primary-foreground/35 to-transparent" />
                 </span>
               </motion.span>
@@ -263,8 +237,10 @@ export function ScheduleHeader() {
         <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-full bg-panel text-foreground">
           <HugeiconsIcon icon={Calendar03Icon} strokeWidth={1.8} className="size-4" />
         </span>
-        <CardTitle id="schedule-title" role="heading" aria-level={2} className="text-xl leading-7 font-normal">
-          Schedule
+        {/* The page's only h1: the schedule is the dashboard's main subject. CardTitle has no
+            asChild, so the heading sits inside it and takes its type (preflight resets h1 sizes). */}
+        <CardTitle className="text-xl leading-7 font-normal">
+          <h1 id="schedule-title">Schedule</h1>
         </CardTitle>
         <CardDescription className="truncate text-[15px] leading-5">
           {AGENCY.dateLabel} ·{" "}

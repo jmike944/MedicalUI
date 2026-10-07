@@ -8,11 +8,15 @@ import { AnimatePresence, motion, useIsPresent } from "motion/react"
 import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import { CardHeading, glanceCardClassName } from "@/components/dashboard/cards/card-heading"
 import { describeRequirement } from "@/components/dashboard/cards/copilot-copy"
-import { HatchedCircle } from "@/components/dashboard/cards/hatched-circle"
 import { useEntranceTiming } from "@/components/dashboard/cards/use-entrance-timing"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { Reveal } from "@/components/dashboard/reveal"
-import { isOvertimeRisk, useSchedule } from "@/components/dashboard/schedule-store"
+import {
+  isOvertimeRisk,
+  useScheduleActions,
+  useScheduleData,
+} from "@/components/dashboard/schedule-store"
+import { HatchedCircle } from "@/components/dashboard/shared/hatched-circle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardAction, CardContent, CardHeader } from "@/components/ui/card"
@@ -26,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item"
+import { EASE_IN_EXIT, rise } from "@/lib/motion"
 import type { OpenShift } from "@/lib/schedule-data"
 import { formatRange } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
@@ -33,7 +38,7 @@ import { cn } from "@/lib/utils"
 const CARD_DELAY = 0.4
 
 export function OpenShiftsCard() {
-  const { openShifts } = useSchedule()
+  const { openShifts } = useScheduleData()
   const titleId = React.useId()
   const entrance = useEntranceTiming(CARD_DELAY + 2)
   const listRef = React.useRef<HTMLDivElement>(null)
@@ -51,8 +56,10 @@ export function OpenShiftsCard() {
     target?.focus({ preventScroll: true })
   }, [])
 
+  // min-w-0: the glance grid's fr columns would otherwise widen to fit a long name, which
+  // must truncate instead.
   return (
-    <Reveal delay={CARD_DELAY} className="h-full">
+    <Reveal delay={CARD_DELAY} className="h-full min-w-0">
       <Card role="region" aria-labelledby={titleId} className={glanceCardClassName}>
         <CardHeader>
           <CardHeading id={titleId} icon={UserAdd01Icon} delay={CARD_DELAY + 0.15}>
@@ -148,7 +155,7 @@ function OpenShiftRow({
           opacity: 1,
           y: 0,
           scale: 1,
-          transition: { type: "spring", stiffness: 360, damping: 28, delay },
+          transition: { ...rise, delay },
         }}
         // A short, contained exit: the row fades out in place before the next one slides up,
         // instead of sliding across the card's padding.
@@ -156,14 +163,18 @@ function OpenShiftRow({
           opacity: 0,
           x: 16,
           scale: 0.97,
-          transition: { duration: 0.22, ease: [0.4, 0, 1, 1], opacity: { duration: 0.16 } },
+          transition: { duration: 0.22, ease: EASE_IN_EXIT, opacity: { duration: 0.16 } },
         }}
       >
         <ItemMedia className="group-has-data-[slot=item-description]/item:translate-y-0 group-has-data-[slot=item-description]/item:self-center">
-          <HatchedCircle />
+          {/* The design's denser 6px hatch; it marches while the row is hovered or focused. */}
+          <HatchedCircle march="hover" className="[--hatch-size:6px]" />
         </ItemMedia>
+        {/* min-w-0 + truncate: long names and requirements end in an ellipsis before the Fill button. */}
         <ItemContent className="min-w-0 gap-0">
-          <ItemTitle className="text-[15px] leading-5 tracking-[-0.02em]">{shift.patient}</ItemTitle>
+          <ItemTitle className="block max-w-full truncate text-[15px] leading-5 tracking-[-0.02em]">
+            {shift.patient}
+          </ItemTitle>
           <ItemDescription className="truncate text-sm leading-5">
             {formatRange(shift.start, shift.end)} · {describeRequirement(shift.requirement)}
           </ItemDescription>
@@ -178,7 +189,8 @@ function OpenShiftRow({
 
 /** "Fill" button that lists qualified caregivers who are free for the shift. */
 function FillMenu({ shift, onFilled }: { shift: OpenShift; onFilled: () => void }) {
-  const { availableCaregiversFor, fillOpenShift } = useSchedule()
+  const { availableCaregiversFor } = useScheduleData()
+  const { fillOpenShift } = useScheduleActions()
   const options = availableCaregiversFor(shift)
   const duration = shift.end - shift.start
   // Set when a caregiver is picked: the trigger is about to leave with its row.
@@ -187,23 +199,22 @@ function FillMenu({ shift, onFilled }: { shift: OpenShift; onFilled: () => void 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
+        {/*
+          Hover and press scale in CSS, not Motion's whileHover/whileTap: Motion's press gesture
+          turns Enter into a synthetic pointerdown, which Radix reads as a second toggle, so the menu
+          opened and closed again on Enter. The `scale` property (not transform) springs out on
+          hover via an overshooting curve and presses in quickly.
+        */}
         <Button
-          asChild
-          className="relative h-9 overflow-hidden rounded-full px-3.5 text-[15px]"
+          data-fill-trigger=""
           aria-label={`Fill ${shift.patient}’s shift`}
+          className="relative h-9 overflow-hidden rounded-full px-3.5 text-[15px] transition-[background-color,color,box-shadow,scale] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] active:duration-100 active:ease-out motion-safe:hover:scale-105 motion-safe:active:scale-95"
         >
-          <motion.button
-            type="button"
-            data-fill-trigger=""
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.94 }}
-          >
-            Fill
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-y-0 left-0 w-full -translate-x-full -skew-x-12 bg-linear-to-r from-transparent via-primary-foreground/45 to-transparent transition-transform duration-700 ease-out group-hover/button:translate-x-full motion-reduce:hidden"
-            />
-          </motion.button>
+          Fill
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 left-0 w-full -translate-x-full -skew-x-12 bg-linear-to-r from-transparent via-primary-foreground/45 to-transparent transition-transform duration-700 ease-out group-hover/button:translate-x-full motion-reduce:hidden"
+          />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent

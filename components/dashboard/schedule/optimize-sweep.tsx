@@ -2,9 +2,10 @@
 
 import { motion, useReducedMotion } from "motion/react"
 
+import { EASE_IN_EXIT, EASE_IN_OUT } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
-import { EASE_IN_EXIT, EASE_IN_OUT, TRACK_OVERLAY } from "./timeline-layout"
+import { TRACK_OVERLAY } from "./timeline-layout"
 
 /** How long the scan line takes to cross the day; the optimizer run itself lasts a little longer. */
 export const SWEEP_DURATION = 1.2

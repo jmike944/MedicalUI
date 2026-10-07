@@ -8,8 +8,8 @@ import { AnimatedNumber } from "@/components/dashboard/animated-number"
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { bouncy, snappy } from "@/lib/motion"
 import { AGENCY, type Caregiver } from "@/lib/schedule-data"
-import { bouncySpring, snappySpring } from "./motion"
 
 const SPREAD = 5
 
@@ -50,7 +50,7 @@ export function OnShiftAvatars({
             key={caregiver.id}
             initial={{ opacity: 0, scale: 0.4 }}
             animate={{ opacity: 1, scale: 1 }}
-            transition={{ ...bouncySpring, delay: delay + index * 0.06 }}
+            transition={{ ...bouncy, delay: delay + index * 0.06 }}
             className="relative flex rounded-full"
             style={{ zIndex: isLifted ? 10 : index }}
           >
@@ -73,7 +73,7 @@ export function OnShiftAvatars({
                     y: isLifted ? -4 : 0,
                     scale: isLifted ? 1.1 : 1,
                   }}
-                  transition={snappySpring}
+                  transition={snappy}
                   className="flex cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
                 >
                   <PersonAvatar
@@ -94,7 +94,7 @@ export function OnShiftAvatars({
         <motion.span
           initial={{ opacity: 0, scale: 0.4 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ ...bouncySpring, delay: delay + caregivers.length * 0.06 }}
+          transition={{ ...bouncy, delay: delay + caregivers.length * 0.06 }}
           className="relative flex rounded-full"
           style={{ zIndex: caregivers.length }}
         >
@@ -109,7 +109,7 @@ export function OnShiftAvatars({
                   })
                 }
                 animate={{ x: spread ? caregivers.length * SPREAD : 0 }}
-                transition={snappySpring}
+                transition={snappy}
                 className="flex cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
               >
                 <AvatarGroupCount className="size-9 bg-panel text-[13px] text-sidebar-foreground ring-sidebar">

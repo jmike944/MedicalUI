@@ -6,12 +6,13 @@ import { CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
 import { AnimatePresence, motion } from "motion/react"
 
 import { useScheduleData } from "@/components/dashboard/schedule-store"
-import type { Caregiver, Visit } from "@/lib/schedule-data"
+import { EASE_OUT } from "@/lib/motion"
+import type { Caregiver, OpenShift, Visit } from "@/lib/schedule-data"
 import { cn } from "@/lib/utils"
 
 import { useIntroTiming } from "./board-context"
 import { CaregiverLabel, OpenShiftsLabel } from "./row-parts"
-import { EASE_OUT, ROW_GRID, revealDelay, rowPresence } from "./timeline-layout"
+import { ROW_GRID, revealDelay, rowPresence } from "./timeline-layout"
 import { OpenShiftBlock, SuggestionGhost, VisitBlock } from "./visit-block"
 
 /** A pending AI suggestion drawn as a ghost block on the target caregiver's row. */
@@ -74,29 +75,78 @@ export function TimelineRow({
   )
 }
 
+/**
+ * After a shift is assigned from its popover, its visit normally lands in the caregiver's lane and
+ * takes focus there. When that lane is filtered out, nothing claims it and focus would fall to the
+ * page as the shift leaves, so the row keeps it: the next open shift along the day (or the one
+ * before it), else the lane itself.
+ */
+function useAssignFocusHandoff(openShifts: readonly OpenShift[]) {
+  const rowRef = React.useRef<HTMLDivElement>(null)
+  const pending = React.useRef<{ id: string; start: number; focusVisible: boolean } | null>(null)
+
+  const onAssign = React.useCallback((shift: OpenShift, fromKeyboard: boolean) => {
+    pending.current = { id: shift.id, start: shift.start, focusVisible: fromKeyboard }
+  }, [])
+
+  /**
+   * Runs once the assigned shift has finished its exit, just before it is removed. Focus may still
+   * sit on its departing chip (Radix returned it there on close), so that counts as lost too; the
+   * filled visit carries the same id but lives in a caregiver lane, outside this row.
+   */
+  const onExitComplete = () => {
+    const handoff = pending.current
+    pending.current = null
+    const row = rowRef.current
+    if (!handoff || !row) return
+    const active = document.activeElement
+    const departing =
+      active instanceof HTMLElement && row.contains(active) && active.dataset.visitId === handoff.id
+    if (active && active !== document.body && !departing) return
+    const byStart = openShifts
+      .filter((shift) => shift.id !== handoff.id)
+      .sort((a, b) => a.start - b.start)
+    const next = byStart.find((shift) => shift.start >= handoff.start) ?? byStart.at(-1)
+    const target = next
+      ? row.querySelector<HTMLElement>(`button[data-visit-id="${next.id}"]`)
+      : row
+    target?.focus({ preventScroll: true, focusVisible: handoff.focusVisible })
+  }
+
+  return { rowRef, onAssign, onExitComplete }
+}
+
 /** The hatched "Open shifts" lane at the top of the timeline. Its strip is painted by the timeline. */
 export function OpenShiftsRow({ pendingFills }: { pendingFills: ReadonlySet<string> }) {
   const { openShifts } = useScheduleData()
   const { at } = useIntroTiming()
+  const { rowRef, onAssign, onExitComplete } = useAssignFocusHandoff(openShifts)
 
   return (
     <motion.div
+      ref={rowRef}
       role="group"
       aria-label="Open shifts"
-      className={cn(ROW_GRID, "relative mt-0.5 h-11 items-center")}
+      // Focusable only from script (the hand-off above); the ring traces the lavender strip.
+      tabIndex={-1}
+      className={cn(
+        ROW_GRID,
+        "relative mt-0.5 h-11 items-center rounded-full outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring focus-visible:outline-solid"
+      )}
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: EASE_OUT, delay: at(0.12) }}
     >
       <OpenShiftsLabel />
       <div className="relative h-full">
-        <AnimatePresence>
+        <AnimatePresence onExitComplete={onExitComplete}>
           {openShifts.map((shift) => (
             <OpenShiftBlock
               key={shift.id}
               shift={shift}
               delay={at(revealDelay(-1, shift.start))}
               pendingMove={pendingFills.has(shift.id)}
+              onAssign={onAssign}
             />
           ))}
         </AnimatePresence>
@@ -110,7 +160,12 @@ export function OpenShiftsRow({ pendingFills }: { pendingFills: ReadonlySet<stri
               exit={{ opacity: 0 }}
               transition={{ delay: 0.5, duration: 0.4, ease: EASE_OUT }}
             >
-              <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} className="size-4" />
+              <HugeiconsIcon
+                icon={CheckmarkCircle02Icon}
+                strokeWidth={1.8}
+                aria-hidden
+                className="size-4"
+              />
               Every shift is covered
             </motion.p>
           ) : null}

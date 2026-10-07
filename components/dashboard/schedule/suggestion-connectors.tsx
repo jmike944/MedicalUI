@@ -10,15 +10,13 @@ import {
   type Suggestion,
   type Visit,
 } from "@/lib/schedule-data"
+import { EASE_IN_EXIT, EASE_IN_OUT, EASE_OUT } from "@/lib/motion"
 import { hourToPercent } from "@/lib/schedule-time"
 import { cn } from "@/lib/utils"
 
 import { useSpotlit } from "./board-context"
 import {
   BLOCK_INSET,
-  EASE_IN_EXIT,
-  EASE_IN_OUT,
-  EASE_OUT,
   OPEN_SHIFTS_CENTER,
   TRACK_OVERLAY,
   ghostDelay,

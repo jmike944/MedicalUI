@@ -1,11 +1,8 @@
 import type { CaregiverRole } from "@/lib/schedule-data"
+import { formatDecimal } from "@/lib/schedule-time"
 
 function plural(count: number, one: string, many: string) {
   return count === 1 ? one : many
-}
-
-function formatAmount(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1)
 }
 
 /**
@@ -15,7 +12,7 @@ function formatAmount(value: number) {
 export function describeSuggestions(savings: number, fills: number) {
   const parts: string[] = []
   if (savings > 0) {
-    parts.push(`save ${formatAmount(savings)} overtime ${plural(savings, "hour", "hours")}`)
+    parts.push(`save ${formatDecimal(savings)} overtime ${plural(savings, "hour", "hours")}`)
   }
   if (fills > 0) parts.push(`fill ${fills} open ${plural(fills, "shift", "shifts")}`)
   if (parts.length === 0) return "Review the recommended schedule changes."

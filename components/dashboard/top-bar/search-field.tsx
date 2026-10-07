@@ -8,9 +8,9 @@ import { Search01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
+import { press } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
-import { snappy } from "./motion"
 import { useIsMac } from "./use-is-mac"
 
 const PLACEHOLDER = "Search patients, caregivers, claims"
@@ -40,7 +40,7 @@ export function SearchField({
       animate={lit ? "active" : "rest"}
       whileHover="active"
       variants={{ rest: { scale: 1 }, active: { scale: 1.01 } }}
-      transition={snappy}
+      transition={press}
     >
       <InputGroup
         className={cn(
@@ -84,7 +84,7 @@ export function SearchField({
             }}
             transition={{ type: "spring", stiffness: 600, damping: 18 }}
           >
-            <HugeiconsIcon icon={Search01Icon} strokeWidth={1.7} className="size-[22px]" aria-hidden />
+            <HugeiconsIcon icon={Search01Icon} size={22} strokeWidth={1.7} aria-hidden />
           </motion.span>
         </InputGroupAddon>
         <InputGroupAddon
@@ -128,8 +128,8 @@ export function SearchIconButton({ onOpen }: { onOpen: () => void }) {
     <Button
       asChild
       variant="ghost"
-      size="icon"
-      className="size-10 rounded-full [&_svg:not([class*='size-'])]:size-[22px]"
+      size="icon-xl"
+      className="rounded-full [&_svg:not([class*='size-'])]:size-[22px]"
     >
       <motion.button
         type="button"
@@ -138,7 +138,7 @@ export function SearchIconButton({ onOpen }: { onOpen: () => void }) {
         onClick={() => onOpen()}
         whileHover="hover"
         whileTap={{ scale: 0.92 }}
-        transition={snappy}
+        transition={press}
       >
         <motion.span
           className="flex"

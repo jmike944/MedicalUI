@@ -8,10 +8,10 @@ import { visitStatusStyles } from "@/components/dashboard/visit-status"
 import { CardFooter } from "@/components/ui/card"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { EASE_OUT } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 
 import { useLockedSpotlight, useSpotlightActions, type Spotlight } from "./board-context"
-import { EASE_OUT } from "./timeline-layout"
 
 /** Legend swatches are plain filled dots, like the design; the blocks keep their own borders. */
 const ENTRIES: { value: Spotlight; label: string; swatch: string; style?: React.CSSProperties }[] = [
@@ -83,8 +83,11 @@ function emptyHint(value: Spotlight, view: "day" | "week") {
 export function ScheduleLegend() {
   const spotlight = useLockedSpotlight()
   const { setSpotlight, setPreview } = useSpotlightActions()
-  const { view } = useScheduleUi()
+  const { view, previewSuggestions } = useScheduleUi()
+  const { suggestions } = useScheduleData()
   const counts = useLegendCounts()
+  // While suggestions are previewed, the suggestion bar sits on this row in a wide card.
+  const covered = previewSuggestions && suggestions.length > 0
 
   // A locked spotlight that no longer matches anything (e.g. the last open shift was filled) lets go.
   const lockedEmpty = spotlight !== null && counts[spotlight] === 0
@@ -93,7 +96,11 @@ export function ScheduleLegend() {
   }, [lockedEmpty, setSpotlight])
 
   return (
-    <CardFooter className="mt-2 pb-6 pl-[35px]">
+    <CardFooter
+      data-covered={covered || undefined}
+      inert={covered}
+      className="mt-2 pb-6 pl-[35px] transition-opacity duration-200 @xl/card:data-covered:opacity-0"
+    >
       <ToggleGroup
         type="single"
         value={spotlight ?? ""}

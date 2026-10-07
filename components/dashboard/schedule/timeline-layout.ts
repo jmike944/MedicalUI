@@ -1,43 +1,12 @@
 import type * as React from "react"
 
+import { EASE_OUT } from "@/lib/motion"
 import { DAY_START } from "@/lib/schedule-data"
 import { hourToPercent, spanToPercent } from "@/lib/schedule-time"
-
-/*
- * Motion presets for the schedule card. Every schedule file pulls its easing and springs from here
- * instead of repeating literals, so the board moves with one voice.
- */
-
-/** Entrances: fast out, gentle settle. */
-export const EASE_OUT = [0.22, 1, 0.36, 1] as const
-
-/** Exits: accelerate away so leaving content never lingers. */
-export const EASE_IN_EXIT = [0.4, 0, 1, 1] as const
-
-/** Symmetric ease for sweeps that travel across the whole board. */
-export const EASE_IN_OUT = [0.65, 0, 0.35, 1] as const
-
-/** A block gliding between rows (reassignments and filled shifts). */
-export const GLIDE = { type: "spring", stiffness: 240, damping: 30, mass: 0.9 } as const
-
-/** Toolbar controls sliding sideways when a neighbour changes width. */
-export const SLIDE = { type: "spring", stiffness: 420, damping: 36 } as const
-
-/** Pills and cells popping into place. */
-export const POP = { type: "spring", stiffness: 420, damping: 28 } as const
-
-/** Small badges and dots that land with a little overshoot. */
-export const BOUNCY = { type: "spring", stiffness: 520, damping: 18 } as const
-
-/** Selection indicators that should track the pointer tightly. */
-export const SNAPPY = { type: "spring", stiffness: 520, damping: 38 } as const
 
 /** Clip-path frames for the left-to-right block reveal. */
 export const CLIP_HIDDEN = "inset(0% 100% 0% 0% round 999px)"
 export const CLIP_SHOWN = "inset(0% 0% 0% 0% round 999px)"
-
-/** Panel base for `bg-hatched` surfaces (the utility sets the same colour; kept inline for motion overlays). */
-export const HATCH_BASE: React.CSSProperties = { backgroundColor: "var(--color-panel)" }
 
 /*
  * Name column. Defined once as a CSS variable on each view's root, keyed to the card's own width
@@ -69,8 +38,9 @@ export const ROW_HEIGHT = 40
 /*
  * Vertical geometry of the day timeline body, in px from its top edge. Mirrors the markup:
  * the Open shifts lane (2px margin + 44px), an 8px gap, then one 40px lane per caregiver.
+ * Open shift blocks (32px) sit 10px into their lane (`top-2.5`), a touch below its centre.
  */
-export const OPEN_SHIFTS_CENTER = 2 + 44 / 2
+export const OPEN_SHIFTS_CENTER = 2 + 10 + 32 / 2
 export const LANES_TOP = 2 + 44 + 8
 export function laneCenter(index: number) {
   return LANES_TOP + index * ROW_HEIGHT + ROW_HEIGHT / 2

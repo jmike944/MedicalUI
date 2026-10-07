@@ -4,10 +4,10 @@ import * as React from "react"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { AnimatePresence, motion, type Variants } from "motion/react"
 
+import { bouncy, pill, sidebarEnterDelay, snappy } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
 import { CountBadge } from "./count-badge"
-import { bouncySpring, enterDelay, pillSpring, snappySpring } from "./motion"
 import { useSidebarNav } from "./nav-context"
 import { useNavGroup } from "./nav-group"
 
@@ -17,15 +17,15 @@ const rowVariants: Variants = {
     opacity: 1,
     x: 0,
     transition: {
-      default: snappySpring,
-      x: { ...snappySpring, delay: enterDelay(step) },
-      opacity: { duration: 0.28, ease: "easeOut", delay: enterDelay(step) },
+      default: snappy,
+      x: { ...snappy, delay: sidebarEnterDelay(step) },
+      opacity: { duration: 0.28, ease: "easeOut", delay: sidebarEnterDelay(step) },
     },
   }),
 }
 
 const iconVariants: Variants = {
-  hover: { x: 2, rotate: -8, transition: bouncySpring },
+  hover: { x: 2, rotate: -8, transition: bouncy },
   tap: { scale: 0.86, transition: { duration: 0.1 } },
 }
 
@@ -90,7 +90,7 @@ export function NavItem({
             <motion.span
               layoutId="sidebar-active-pill"
               aria-hidden
-              transition={pillSpring}
+              transition={pill}
               style={{ borderRadius: 18 }}
               className="absolute inset-0 z-0 bg-sidebar-accent"
             />
@@ -109,7 +109,7 @@ export function NavItem({
         </motion.a>
       </SidebarMenuButton>
       <AnimatePresence>
-        {showBadge ? <CountBadge key="badge" value={badge} delay={enterDelay(step) + 0.22} /> : null}
+        {showBadge ? <CountBadge key="badge" value={badge} delay={sidebarEnterDelay(step) + 0.22} /> : null}
       </AnimatePresence>
     </SidebarMenuItem>
   )

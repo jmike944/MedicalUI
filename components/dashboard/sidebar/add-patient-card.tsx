@@ -6,7 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { motion, useReducedMotion, type Variants } from "motion/react"
 import { toast } from "sonner"
 
-import { bouncySpring, enterDelay, snappySpring } from "./motion"
+import { bouncy, sidebarEnterDelay, snappy } from "@/lib/motion"
 
 /** One dash plus one gap of the outline, in px. Marching by a multiple of it loops seamlessly. */
 const DASH_PERIOD = 10
@@ -14,8 +14,8 @@ const DASH_PERIOD = 10
 const DASH_PHASE = 3
 
 const plusVariants: Variants = {
-  rest: { rotate: 0, scale: 1, transition: bouncySpring },
-  active: { rotate: 90, scale: 1.12, transition: bouncySpring },
+  rest: { rotate: 0, scale: 1, transition: bouncy },
+  active: { rotate: 90, scale: 1.12, transition: bouncy },
 }
 
 /**
@@ -49,9 +49,9 @@ export function AddPatientCard({ step }: { step: number }) {
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{
-        default: snappySpring,
-        y: { ...snappySpring, delay: enterDelay(step) },
-        opacity: { duration: 0.35, delay: enterDelay(step) },
+        default: snappy,
+        y: { ...snappy, delay: sidebarEnterDelay(step) },
+        opacity: { duration: 0.35, delay: sidebarEnterDelay(step) },
       }}
       onHoverStart={() => setHovered(true)}
       onHoverEnd={() => setHovered(false)}

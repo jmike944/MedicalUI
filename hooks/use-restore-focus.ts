@@ -3,8 +3,8 @@
 import * as React from "react"
 
 /**
- * Radix dialogs return focus to their `DialogTrigger`. The top bar opens dialogs from
- * shortcuts, inputs and menus instead, so remember whatever had focus and restore it.
+ * Radix dialogs return focus to their `DialogTrigger`. Dialogs and sheets opened from shortcuts,
+ * inputs, menus or other overlays have no trigger, so remember whatever had focus and restore it.
  */
 export function useRestoreFocus() {
   const previous = React.useRef<HTMLElement | null>(null)

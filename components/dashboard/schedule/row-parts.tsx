@@ -5,12 +5,13 @@ import { AnimatePresence, motion } from "motion/react"
 
 import { PersonAvatar } from "@/components/dashboard/person-avatar"
 import { isOvertimeRisk } from "@/components/dashboard/schedule-store"
+import { HatchedCircle } from "@/components/dashboard/shared/hatched-circle"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { EASE_OUT, bouncier } from "@/lib/motion"
 import type { Caregiver } from "@/lib/schedule-data"
 import { cn } from "@/lib/utils"
 
 import { useIntroTiming } from "./board-context"
-import { BOUNCY, EASE_OUT, HATCH_BASE } from "./timeline-layout"
 
 /*
  * Pieces shared by the day timeline and the week grid, so both views label their lanes the same
@@ -50,7 +51,7 @@ export function OvertimeDot({ caregiver }: { caregiver: Caregiver }) {
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             exit={{ scale: 0, transition: { duration: 0.2 } }}
-            transition={{ ...BOUNCY, delay: at(0.9, 0.1) }}
+            transition={{ ...bouncier, delay: at(0.9, 0.1) }}
           />
         </span>
       </TooltipTrigger>
@@ -85,15 +86,14 @@ export function CaregiverLabel({
   )
 }
 
-/** Name cell of the Open shifts lane: a hatched circle and its label, on the lavender strip. */
+/**
+ * Name cell of the Open shifts lane: a hatched circle and its label, on the lavender strip. The
+ * circle is hatched finer than the blocks (5px tile), as drawn in the design.
+ */
 export function OpenShiftsLabel({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <RowLabel className={cn("rounded-l-full bg-panel", className)} {...props}>
-      <span
-        aria-hidden
-        style={HATCH_BASE}
-        className="size-[30px] shrink-0 rounded-full bg-hatched ring-1 ring-hatch/70 ring-inset"
-      />
+      <HatchedCircle size="sm" march="none" className="ring-hatch/70 [--hatch-size:5px]" />
       <RowName className="font-medium">Open shifts</RowName>
     </RowLabel>
   )

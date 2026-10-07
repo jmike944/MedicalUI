@@ -5,10 +5,10 @@ import { ArrowUp01Icon } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { motion } from "motion/react"
 
+import { bouncy, pill, sidebarEnterDelay, snappy } from "@/lib/motion"
 import { cn } from "@/lib/utils"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { SidebarGroup, SidebarGroupContent, SidebarGroupLabel } from "@/components/ui/sidebar"
-import { bouncySpring, enterDelay, pillSpring, snappySpring } from "./motion"
 import { useSidebarNav } from "./nav-context"
 
 type NavGroupContextValue = {
@@ -76,13 +76,13 @@ export function NavGroup({
                 type="button"
                 initial={{ opacity: 0, x: -8 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ ...snappySpring, delay: enterDelay(step) }}
+                transition={{ ...snappy, delay: sidebarEnterDelay(step) }}
               >
                 {holdsActive ? (
                   <motion.span
                     layoutId="sidebar-active-pill"
                     aria-hidden
-                    transition={pillSpring}
+                    transition={pill}
                     style={{ borderRadius: 16 }}
                     className="absolute inset-x-0 -inset-y-1 z-0 bg-sidebar-accent"
                   />
@@ -95,7 +95,7 @@ export function NavGroup({
                   aria-hidden
                   initial={false}
                   animate={{ rotate: open ? 0 : 180 }}
-                  transition={bouncySpring}
+                  transition={bouncy}
                   className="relative z-[1] -mr-1 flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors group-hover/label:bg-sidebar-accent group-hover/label:text-sidebar-accent-foreground group-data-holds-active/label:text-sidebar-accent-foreground"
                 >
                   <HugeiconsIcon icon={ArrowUp01Icon} size={16} strokeWidth={1.8} aria-hidden />

@@ -11,8 +11,7 @@ import {
   useScheduleUi,
 } from "@/components/dashboard/schedule-store"
 import { Button } from "@/components/ui/button"
-
-import { BOUNCY, EASE_IN_EXIT, EASE_OUT } from "./timeline-layout"
+import { EASE_IN_EXIT, EASE_OUT, bouncier } from "@/lib/motion"
 
 /** "Save 1.5 h · fill 1 shift", leaving out whichever part is zero. */
 function impactSummary(savings: number, fills: number) {
@@ -56,9 +55,10 @@ export function SuggestionBar() {
             : { duration: 0.25, ease: EASE_OUT, delay: 0.1 }
         }
       />
-      {/* Anchored on the last lane, just above the legend. In a wide card it centres on the hour
-          track (past the 184px name column); narrower, it centres in the card, then spans it. */}
-      <div className="pointer-events-none absolute inset-x-3 -bottom-0.5 z-40 flex justify-center @xl:inset-x-6 @3xl:left-[calc(var(--spacing)*6+184px)]">
+      {/* In a wide card the bar takes the legend's row (the legend fades out underneath), so it
+          never covers a visit; it centres on the hour track past the 184px name column. In a
+          narrow card it sits in the room opened above. */}
+      <div className="pointer-events-none absolute inset-x-3 -bottom-0.5 z-40 flex justify-center @xl:inset-x-6 @xl:-bottom-[38px] @3xl:left-[calc(var(--spacing)*6+184px)]">
         <AnimatePresence>
           {show ? (
             <motion.div
@@ -84,10 +84,10 @@ export function SuggestionBar() {
             >
               <motion.span
                 aria-hidden
-                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-copilot text-primary-foreground"
+                className="flex size-7 shrink-0 items-center justify-center rounded-full bg-copilot text-copilot-foreground"
                 initial={{ scale: 0, rotate: -60 }}
                 animate={{ scale: 1, rotate: 0 }}
-                transition={{ ...BOUNCY, delay: 0.4 }}
+                transition={{ ...bouncier, delay: 0.4 }}
               >
                 <HugeiconsIcon icon={SparklesIcon} strokeWidth={2} className="size-3.5" />
               </motion.span>
@@ -110,7 +110,12 @@ export function SuggestionBar() {
                   Review
                 </Button>
                 <Button size="sm" className="@max-xl:flex-1" onClick={acceptAllSuggestions}>
-                  <HugeiconsIcon icon={Tick02Icon} strokeWidth={2} data-icon="inline-start" />
+                  <HugeiconsIcon
+                    icon={Tick02Icon}
+                    strokeWidth={2}
+                    aria-hidden
+                    data-icon="inline-start"
+                  />
                   Accept all
                 </Button>
               </div>
@@ -128,7 +133,7 @@ export function SuggestionBar() {
                     ?.focus({ preventScroll: true, focusVisible: event.detail === 0 })
                 }}
               >
-                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} aria-hidden />
               </Button>
             </motion.div>
           ) : null}
