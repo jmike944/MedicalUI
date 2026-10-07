@@ -28,7 +28,7 @@ import { SidebarNavProvider } from "./sidebar/nav-context"
 import { NavItem } from "./sidebar/nav-item"
 import { OnShiftGroup } from "./sidebar/on-shift-group"
 import { ScheduleNavItem } from "./sidebar/schedule-nav-item"
-import { SidebarLogo } from "./sidebar/sidebar-logo"
+import { SIDEBAR_ID, SidebarLogo } from "./sidebar/sidebar-logo"
 import { useScrollFade } from "./sidebar/use-scroll-fade"
 
 /**
@@ -41,15 +41,20 @@ export function AppSidebar() {
   const contentRef = useScrollFade<HTMLDivElement>()
 
   return (
-    <Sidebar collapsible="offcanvas" className="border-r-0 group-data-[side=left]:border-r-0">
+    // The CareOps logo (or ⌘B) collapses the sidebar to an icon rail and back.
+    <Sidebar
+      id={SIDEBAR_ID}
+      collapsible="icon"
+      className="border-r-0 group-data-[side=left]:border-r-0"
+    >
       <SidebarNavProvider defaultActiveId="schedule">
-        <SidebarHeader className="gap-0 px-[35px] pt-[29px] pb-0">
+        <SidebarHeader className="gap-0 overflow-hidden px-[35px] pt-[29px] pb-0 transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[collapsible=icon]:px-[18px]">
           <SidebarLogo />
         </SidebarHeader>
 
         <SidebarContent
           ref={contentRef}
-          className="gap-0 pt-[32px] pr-[25px] pb-6 pl-[23px] data-scroll-fade:[mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top),#000_calc(100%_-_var(--fade-bottom)),transparent)]"
+          className="gap-0 pt-[32px] pr-[25px] pb-6 pl-[23px] transition-[padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[collapsible=icon]:overflow-y-auto group-data-[collapsible=icon]:px-[14px] data-scroll-fade:[mask-image:linear-gradient(to_bottom,transparent,#000_var(--fade-top),#000_calc(100%_-_var(--fade-bottom)),transparent)]"
         >
           {/* Everything above "Add a patient": the destinations, plus who is on shift. A flex
               column like SidebarContent, so the sections keep their spacing. */}

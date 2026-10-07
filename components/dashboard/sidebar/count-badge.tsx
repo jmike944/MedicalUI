@@ -37,7 +37,7 @@ export function CountBadge({ value, delay = 0 }: { value: number; delay?: number
   return (
     <SidebarMenuBadge
       aria-hidden
-      className="right-[11px] z-[1] h-6 min-w-6 rounded-full p-0 peer-data-[size=default]/menu-button:top-2"
+      className="right-[11px] z-[1] h-6 min-w-6 rounded-full p-0 transition-[top,right] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] peer-data-[size=default]/menu-button:top-2 group-data-[collapsible=icon]:-top-0.5! group-data-[collapsible=icon]:-right-0.5! group-data-[collapsible=icon]:flex! group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:min-w-0"
     >
       <motion.span
         initial={{ scale: 0.6, opacity: 0 }}
@@ -48,7 +48,8 @@ export function CountBadge({ value, delay = 0 }: { value: number; delay?: number
       >
         <span
           ref={scope}
-          className="relative flex h-6 min-w-6 items-center justify-center overflow-hidden rounded-full bg-sidebar-primary px-1 text-xs font-medium text-sidebar-primary-foreground tabular-nums"
+          // In the icon rail the bubble shrinks onto the icon's corner, ringed to stand off it.
+          className="relative flex h-6 min-w-6 items-center justify-center overflow-hidden rounded-full bg-sidebar-primary px-1 text-xs font-medium text-sidebar-primary-foreground tabular-nums ring-0 ring-sidebar transition-[height,min-width,padding,font-size,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-data-[collapsible=icon]:h-[18px] group-data-[collapsible=icon]:min-w-[18px] group-data-[collapsible=icon]:px-[5px] group-data-[collapsible=icon]:text-[10px] group-data-[collapsible=icon]:ring-2"
         >
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>
             <motion.span

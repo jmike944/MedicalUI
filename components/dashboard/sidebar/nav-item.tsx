@@ -67,8 +67,12 @@ export function NavItem({
       <SidebarMenuButton
         asChild
         isActive={isActive}
+        // Shown only in the icon rail (SidebarMenuButton hides it otherwise).
+        tooltip={label}
         className={cn(
-          "relative gap-3 overflow-visible rounded-[18px] px-3 text-muted-foreground transition-colors duration-200 hover:bg-sidebar-accent/50 data-active:bg-transparent data-active:font-semibold [&_svg]:size-5",
+          "relative gap-3 overflow-visible rounded-[18px] px-3 text-muted-foreground transition-[color,background-color,width,height,padding] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-sidebar-accent/50 data-active:bg-transparent data-active:font-semibold [&_svg]:size-5",
+          // Icon rail: a 44px square around the icon; the label is clipped and faded.
+          "group-data-[collapsible=icon]:size-11! group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:p-3!",
           size === "compact" ? "h-[38px] text-[15px]" : "h-10 text-base"
         )}
       >
@@ -98,7 +102,7 @@ export function NavItem({
           <motion.span variants={iconVariants} className="relative z-[1] flex shrink-0">
             <HugeiconsIcon icon={icon} strokeWidth={1.6} aria-hidden />
           </motion.span>
-          <span className="relative z-[1]">
+          <span className="relative z-[1] whitespace-nowrap transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0">
             {label}
             {showBadge && badgeLabel ? (
               <span className="sr-only">

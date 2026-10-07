@@ -207,6 +207,43 @@
   stripes above the panel colour and below the content. Size the stripes with --hatch-size, not
   bg-size utilities, which no longer reach the stripe layer.
 */
+/*
+  Soft edges for a scroll area: content fades out at an edge only while there is more to scroll
+  that way. The scroller sets data-scrolled (content above) and data-more (content below); the
+  registered properties let the fade ease in and out instead of snapping.
+*/
+@property --scroll-fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --scroll-fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@utility scroll-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    #000 var(--scroll-fade-top),
+    #000 calc(100% - var(--scroll-fade-bottom)),
+    transparent
+  );
+  transition:
+    --scroll-fade-top 250ms ease-out,
+    --scroll-fade-bottom 250ms ease-out;
+
+  &[data-scrolled] {
+    --scroll-fade-top: 28px;
+  }
+  &[data-more] {
+    --scroll-fade-bottom: 28px;
+  }
+}
+
 @utility bg-hatched {
   --hatch-stripe: 0.7px;
   background-color: var(--color-panel);

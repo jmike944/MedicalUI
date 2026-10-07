@@ -6,7 +6,9 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { motion, useReducedMotion, type Variants } from "motion/react"
 import { toast } from "sonner"
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { bouncy, sidebarEnterDelay, snappy } from "@/lib/motion"
+import { useRail } from "./use-rail"
 
 /** One dash plus one gap of the outline, in px. Marching by a multiple of it loops seamlessly. */
 const DASH_PERIOD = 10
@@ -24,6 +26,7 @@ const plusVariants: Variants = {
  */
 export function AddPatientCard({ step }: { step: number }) {
   const reduceMotion = useReducedMotion()
+  const rail = useRail()
   const [hovered, setHovered] = React.useState(false)
   const [focused, setFocused] = React.useState(false)
   const active = hovered || focused
@@ -45,6 +48,8 @@ export function AddPatientCard({ step }: { step: number }) {
   }
 
   return (
+    <Tooltip>
+      <TooltipTrigger asChild>
     <motion.div
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
@@ -60,13 +65,14 @@ export function AddPatientCard({ step }: { step: number }) {
         if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false)
       }}
       // Press feedback is CSS :active. A motion press gesture would make this div a tab stop.
-      className="group/add relative flex h-[140px] shrink-0 flex-col items-center rounded-[24px] bg-panel pt-5 transition-[background-color,scale] duration-300 ease-out hover:bg-accent active:scale-[0.98] active:duration-150"
+      // In the icon rail the card shrinks to just its plus button: no fill, no outline, no copy.
+      className="group/add relative flex h-[140px] shrink-0 flex-col items-center rounded-[24px] bg-panel pt-5 transition-[background-color,scale,height,padding,border-radius] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-accent active:scale-[0.98] active:duration-150 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:overflow-hidden group-data-[collapsible=icon]:rounded-full group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:pt-0 group-data-[collapsible=icon]:hover:bg-transparent"
     >
       <motion.svg
         aria-hidden
         initial={false}
         animate={active ? "active" : "rest"}
-        className="pointer-events-none absolute inset-px size-[calc(100%-2px)] overflow-visible text-primary"
+        className="pointer-events-none absolute inset-px size-[calc(100%-2px)] overflow-visible text-primary transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0"
       >
         <motion.rect
           width="100%"
@@ -84,7 +90,7 @@ export function AddPatientCard({ step }: { step: number }) {
         initial={false}
         animate={active ? "active" : "rest"}
         variants={plusVariants}
-        className="flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary/30 transition-shadow duration-300 group-hover/add:shadow-lg group-has-focus-visible/add:shadow-lg"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary/30 transition-shadow duration-300 group-hover/add:shadow-lg group-has-focus-visible/add:shadow-lg"
       >
         <HugeiconsIcon icon={PlusSignIcon} size={20} strokeWidth={1.8} aria-hidden />
       </motion.span>
@@ -95,11 +101,14 @@ export function AddPatientCard({ step }: { step: number }) {
             description: "Add demographics, payer and care needs to start scheduling.",
           })
         }
-        className="mt-2.5 text-base leading-[22px] font-semibold text-foreground outline-none after:absolute after:inset-0 after:rounded-[24px] after:ring-sidebar-ring focus-visible:after:ring-2"
+        className="mt-2.5 text-base leading-[22px] font-semibold whitespace-nowrap text-foreground outline-none transition-opacity duration-200 after:absolute after:inset-0 after:rounded-[24px] after:ring-sidebar-ring focus-visible:after:ring-2 group-data-[collapsible=icon]:text-transparent group-data-[collapsible=icon]:after:rounded-full"
       >
         Add a patient
       </button>
-      <p className="mt-2 text-[14.5px] leading-5 text-muted-foreground">
+      <p
+        inert={rail}
+        className="mt-2 text-[14.5px] leading-5 whitespace-nowrap text-muted-foreground transition-opacity duration-200 group-data-[collapsible=icon]:opacity-0"
+      >
         Or{" "}
         <button
           type="button"
@@ -115,5 +124,10 @@ export function AddPatientCard({ step }: { step: number }) {
         </button>
       </p>
     </motion.div>
+      </TooltipTrigger>
+      <TooltipContent side="right" hidden={!rail}>
+        Add a patient
+      </TooltipContent>
+    </Tooltip>
   )
 }
