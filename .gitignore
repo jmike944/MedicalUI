@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only: design reference screenshot (third-party artwork) and machine-specific launch config
+/design/
+/.claude/launch.json

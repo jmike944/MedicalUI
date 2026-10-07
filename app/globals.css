@@ -1,26 +1,247 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-panel: var(--panel);
+  --color-grid-line: var(--grid-line);
+  --color-hatch: var(--hatch);
+  --color-done: var(--done);
+  --color-done-foreground: var(--done-foreground);
+  --color-scheduled: var(--scheduled);
+  --color-scheduled-foreground: var(--scheduled-foreground);
+  --color-in-progress: var(--in-progress);
+  --color-in-progress-foreground: var(--in-progress-foreground);
+  --color-attention: var(--attention);
+  --color-attention-foreground: var(--attention-foreground);
+  --color-attention-border: var(--attention-border);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-copilot: var(--copilot);
+  --color-copilot-highlight: var(--copilot-highlight);
+  --animate-hatch-march: hatch-march 2.4s linear infinite;
+  --animate-shimmer: shimmer 2.8s ease-in-out infinite;
+  --animate-float: float 7s ease-in-out infinite;
+  --animate-ping-slow: ping-slow 2.2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  /* CareOps palette (sampled from the design reference) */
+  --background: #ffffff;
+  --foreground: #18171f;
+  --card: #ffffff;
+  --card-foreground: #18171f;
+  --popover: #ffffff;
+  --popover-foreground: #18171f;
+  --primary: #3f6bf3;
+  --primary-foreground: #ffffff;
+  --secondary: #eef0fd;
+  --secondary-foreground: #18171f;
+  --muted: #eef0fd;
+  --muted-foreground: #767885;
+  --accent: #e9ecff;
+  --accent-foreground: #3f6bf3;
+  --destructive: #e5484d;
+  --border: #e7e9f5;
+  --input: #e4e7f8;
+  --ring: #3f6bf3;
+  --chart-1: #3f6bf3;
+  --chart-2: #d5f461;
+  --chart-3: #e8a13e;
+  --chart-4: #e5484d;
+  --chart-5: #767885;
+  --radius: 0.75rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #5f616e;
+  --sidebar-primary: #3f6bf3;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e9ecff;
+  --sidebar-accent-foreground: #3f6bf3;
+  --sidebar-border: #e7e9f5;
+  --sidebar-ring: #3f6bf3;
+
+  /* Dashboard surfaces and schedule statuses */
+  --panel: #eef0fd;
+  --grid-line: #f0f1f8;
+  --hatch: #c9cde4;
+  --done: #eef0fd;
+  --done-foreground: #747888;
+  --scheduled: #ececfd;
+  --scheduled-foreground: #18171f;
+  --in-progress: #d5f461;
+  --in-progress-foreground: #1b2400;
+  --attention: #fdefef;
+  --attention-foreground: #d93a48;
+  --attention-border: #ef8d95;
+  --warning: #e8a13e;
+  --warning-foreground: #7d6830;
+  --copilot: #4269f5;
+  --copilot-highlight: #5b80f7;
+}
+
+.dark {
+  --background: #0f1016;
+  --foreground: #f3f4fa;
+  --card: #171923;
+  --card-foreground: #f3f4fa;
+  --popover: #1b1d29;
+  --popover-foreground: #f3f4fa;
+  --primary: #6b8cff;
+  --primary-foreground: #0f1016;
+  --secondary: #222536;
+  --secondary-foreground: #f3f4fa;
+  --muted: #222536;
+  --muted-foreground: #9a9db0;
+  --accent: #252b4a;
+  --accent-foreground: #a9bcff;
+  --destructive: #ff6b70;
+  --border: #2a2d3e;
+  --input: #2f3346;
+  --ring: #6b8cff;
+  --chart-1: #6b8cff;
+  --chart-2: #c9ea55;
+  --chart-3: #f0b25a;
+  --chart-4: #ff6b70;
+  --chart-5: #9a9db0;
+  --sidebar: #12131b;
+  --sidebar-foreground: #a7aabb;
+  --sidebar-primary: #6b8cff;
+  --sidebar-primary-foreground: #0f1016;
+  --sidebar-accent: #252b4a;
+  --sidebar-accent-foreground: #a9bcff;
+  --sidebar-border: #2a2d3e;
+  --sidebar-ring: #6b8cff;
+
+  --panel: #1a1c28;
+  --grid-line: #242737;
+  --hatch: #3a3f58;
+  --done: #232638;
+  --done-foreground: #8d90a3;
+  --scheduled: #2a2e47;
+  --scheduled-foreground: #eef0fd;
+  --in-progress: #c9ea55;
+  --in-progress-foreground: #1b2400;
+  --attention: #3a1d22;
+  --attention-foreground: #ff8a90;
+  --attention-border: #a7444d;
+  --warning: #f0b25a;
+  --warning-foreground: #f6c27a;
+  --copilot: #3a5ee6;
+  --copilot-highlight: #5577f2;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Diagonal hatching for open shifts and remaining overtime capacity. Named so it stays clear of the colour utility Tailwind generates for --color-hatch. */
+@utility bg-hatched {
+  background-color: var(--color-panel);
+  background-image: linear-gradient(
+    135deg,
+    transparent 0 calc(50% - 0.75px),
+    var(--color-hatch) calc(50% - 0.75px) calc(50% + 0.75px),
+    transparent calc(50% + 0.75px)
+  );
+  background-size: 8px 8px;
+}
+
+@keyframes hatch-march {
+  to {
+    background-position: 8px 0;
+  }
+}
+
+/* Light sweep for live (in-progress) visits. Apply to an absolutely positioned overlay. */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  60%,
+  100% {
+    transform: translateX(220%);
+  }
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-10px, 8px, 0) scale(1.04);
+  }
+}
+
+@keyframes ping-slow {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  80%,
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+  }
 }
